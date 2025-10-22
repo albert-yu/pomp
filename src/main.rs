@@ -1,6 +1,7 @@
 use crossterm::event::{self, Event};
 use ratatui::{
     DefaultTerminal, Frame,
+    layout::{Constraint, Layout},
     prelude::Rect,
     style::Stylize,
     symbols::border,
@@ -42,14 +43,26 @@ impl Widget for &App {
         Self: Sized,
     {
         let title = Line::from(" POMP ".bold());
-        let block = Block::bordered()
+        let container = Block::bordered()
             .title(title.centered())
             .border_set(border::THICK)
             .border_type(BorderType::Rounded);
+        let inner_area = container.inner(area);
+        container.render(area, buf);
+
+        let chunks =
+            Layout::vertical([Constraint::Min(1), Constraint::Length(3)]).split(inner_area);
+
+        let input_title = Line::from("Input");
+
+        let input_block = Block::bordered()
+            .title(input_title.left_aligned())
+            .border_set(border::PLAIN)
+            .border_type(BorderType::Rounded);
+
         Paragraph::new("hi there")
-            .centered()
-            .block(block)
-            .render(area, buf)
+            .block(input_block)
+            .render(chunks[1], buf)
     }
 }
 
