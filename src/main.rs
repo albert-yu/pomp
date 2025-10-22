@@ -8,13 +8,24 @@ use ratatui::{
     text::Line,
     widgets::{Block, BorderType, Paragraph, Widget},
 };
+use ropey::Rope;
 use std::io::Result;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct App {
     exit: bool,
-    input: String,
+    input: Rope,
     cursor_pos: usize,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self {
+            exit: false,
+            input: Rope::new(),
+            cursor_pos: 0,
+        }
+    }
 }
 
 impl App {
@@ -42,25 +53,21 @@ impl App {
                     self.cursor_pos = 0;
                 }
                 KeyCode::Char('e') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                    self.cursor_pos = self.input.len();
+                    self.cursor_pos = self.input.len_chars();
                 }
                 KeyCode::Char(c) => {
-                    if self.cursor_pos >= self.input.len() {
-                        self.input.push(c);
-                    } else {
-                        self.input.insert(self.cursor_pos, c);
-                    }
+                    self.input.insert_char(self.cursor_pos, c);
                     self.cursor_pos += 1;
                 }
                 KeyCode::Backspace => {
                     if self.cursor_pos > 0 {
                         self.cursor_pos -= 1;
-                        self.input.remove(self.cursor_pos);
+                        self.input.remove(self.cursor_pos..self.cursor_pos + 1);
                     }
                 }
                 KeyCode::Delete => {
-                    if self.cursor_pos < self.input.len() {
-                        self.input.remove(self.cursor_pos);
+                    if self.cursor_pos < self.input.len_chars() {
+                        self.input.remove(self.cursor_pos..self.cursor_pos + 1);
                     }
                 }
                 KeyCode::Left => {
@@ -69,7 +76,7 @@ impl App {
                     }
                 }
                 KeyCode::Right => {
-                    if self.cursor_pos < self.input.len() {
+                    if self.cursor_pos < self.input.len_chars() {
                         self.cursor_pos += 1;
                     }
                 }
@@ -77,7 +84,7 @@ impl App {
                     self.cursor_pos = 0;
                 }
                 KeyCode::End => {
-                    self.cursor_pos = self.input.len();
+                    self.cursor_pos = self.input.len_chars();
                 }
                 KeyCode::Esc => {
                     self.exit = true;
@@ -112,11 +119,13 @@ impl Widget for &App {
             .border_set(border::PLAIN)
             .border_type(BorderType::Rounded);
 
-        let text_with_cursor = if self.cursor_pos >= self.input.len() {
+        let input_len = self.input.len_chars();
+        let text_with_cursor = if self.cursor_pos >= input_len {
             format!("{}█", self.input)
         } else {
-            let (before, after) = self.input.split_at(self.cursor_pos);
-            format!("{}█{}", before, &after[1..])
+            let before = self.input.slice(..self.cursor_pos).to_string();
+            let after = self.input.slice(self.cursor_pos + 1..).to_string();
+            format!("{}█{}", before, after)
         };
 
         Paragraph::new(text_with_cursor)
