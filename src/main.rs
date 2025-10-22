@@ -1,5 +1,12 @@
 use crossterm::event::{self, Event};
-use ratatui::{DefaultTerminal, Frame};
+use ratatui::{
+    DefaultTerminal, Frame,
+    prelude::Rect,
+    style::Stylize,
+    symbols::border,
+    text::Line,
+    widgets::{Block, Paragraph, Widget},
+};
 use std::io::Result;
 
 #[derive(Debug, Default)]
@@ -18,30 +25,37 @@ impl App {
     }
 
     fn draw(&self, frame: &mut Frame) {
-        todo!();
+        frame.render_widget(self, frame.area());
     }
 
-    fn handle_events(&self) -> Result<()> {
-        todo!();
+    fn handle_events(&mut self) -> Result<()> {
+        if matches!(event::read()?, Event::Key(_)) {
+            self.exit = true;
+        }
+        Ok(())
+    }
+}
+
+impl Widget for &App {
+    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
+    where
+        Self: Sized,
+    {
+        let title = Line::from(" POMP ".bold());
+        let block = Block::bordered()
+            .title(title.centered())
+            .border_set(border::THICK);
+        Paragraph::new("hi there")
+            .centered()
+            .block(block)
+            .render(area, buf)
     }
 }
 
 fn main() -> Result<()> {
-    let terminal = ratatui::init();
-    let result = run(terminal);
+    let mut terminal = ratatui::init();
+    let mut app = App::default();
+    let result = app.run(&mut terminal);
     ratatui::restore();
     result
-}
-
-fn run(mut terminal: DefaultTerminal) -> Result<()> {
-    loop {
-        terminal.draw(render)?;
-        if matches!(event::read()?, Event::Key(_)) {
-            break Ok(());
-        }
-    }
-}
-
-fn render(frame: &mut Frame) {
-    frame.render_widget("hello world", frame.area());
 }
