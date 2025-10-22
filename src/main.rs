@@ -1,4 +1,4 @@
-use crossterm::event::{self, Event};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Layout},
@@ -14,6 +14,7 @@ use std::io::Result;
 pub struct App {
     exit: bool,
     input: String,
+    cursor_pos: usize,
 }
 
 impl App {
@@ -30,8 +31,59 @@ impl App {
     }
 
     fn handle_events(&mut self) -> Result<()> {
-        if matches!(event::read()?, Event::Key(_)) {
-            self.exit = true;
+        if let Event::Key(key) = event::read()? {
+            match key.code {
+                KeyCode::Char('c') | KeyCode::Char('d')
+                    if key.modifiers.contains(KeyModifiers::CONTROL) =>
+                {
+                    self.exit = true;
+                }
+                KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    self.cursor_pos = 0;
+                }
+                KeyCode::Char('e') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    self.cursor_pos = self.input.len();
+                }
+                KeyCode::Char(c) => {
+                    if self.cursor_pos >= self.input.len() {
+                        self.input.push(c);
+                    } else {
+                        self.input.insert(self.cursor_pos, c);
+                    }
+                    self.cursor_pos += 1;
+                }
+                KeyCode::Backspace => {
+                    if self.cursor_pos > 0 {
+                        self.cursor_pos -= 1;
+                        self.input.remove(self.cursor_pos);
+                    }
+                }
+                KeyCode::Delete => {
+                    if self.cursor_pos < self.input.len() {
+                        self.input.remove(self.cursor_pos);
+                    }
+                }
+                KeyCode::Left => {
+                    if self.cursor_pos > 0 {
+                        self.cursor_pos -= 1;
+                    }
+                }
+                KeyCode::Right => {
+                    if self.cursor_pos < self.input.len() {
+                        self.cursor_pos += 1;
+                    }
+                }
+                KeyCode::Home => {
+                    self.cursor_pos = 0;
+                }
+                KeyCode::End => {
+                    self.cursor_pos = self.input.len();
+                }
+                KeyCode::Esc => {
+                    self.exit = true;
+                }
+                _ => {}
+            }
         }
         Ok(())
     }
@@ -60,7 +112,14 @@ impl Widget for &App {
             .border_set(border::PLAIN)
             .border_type(BorderType::Rounded);
 
-        Paragraph::new("hi there")
+        let text_with_cursor = if self.cursor_pos >= self.input.len() {
+            format!("{}█", self.input)
+        } else {
+            let (before, after) = self.input.split_at(self.cursor_pos);
+            format!("{}█{}", before, &after[1..])
+        };
+
+        Paragraph::new(text_with_cursor)
             .block(input_block)
             .render(chunks[1], buf)
     }
