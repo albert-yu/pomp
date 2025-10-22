@@ -1,4 +1,5 @@
 use arboard::Clipboard;
+use base64::{Engine as _, engine::general_purpose};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{
     DefaultTerminal, Frame,
@@ -115,7 +116,15 @@ impl App {
             }
             KeyCode::Enter => {
                 if self.input.len_chars() > 0 {
-                    self.buffer = self.input.to_string();
+                    let input_text = self.input.to_string();
+
+                    // Check if it's a slash command
+                    if input_text.starts_with('/') {
+                        self.handle_command(&input_text);
+                    } else {
+                        self.buffer = input_text;
+                    }
+
                     self.input = Rope::new();
                     self.cursor_pos = 0;
                 }
@@ -148,6 +157,50 @@ impl App {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn handle_command(&mut self, command: &str) {
+        // Clear any previous error
+        self.error_message = None;
+
+        match command.trim() {
+            "/base64-decode" => {
+                if self.buffer.is_empty() {
+                    self.error_message = Some("Error: Buffer is empty".to_string());
+                    return;
+                }
+
+                match general_purpose::STANDARD.decode(self.buffer.trim()) {
+                    Ok(decoded_bytes) => {
+                        match String::from_utf8(decoded_bytes) {
+                            Ok(decoded_string) => {
+                                self.buffer = decoded_string;
+                                self.scroll_pos = 0;
+                            }
+                            Err(_) => {
+                                self.error_message = Some("Error: Decoded data is not valid UTF-8".to_string());
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        self.error_message = Some("Error: Invalid base64 input".to_string());
+                    }
+                }
+            }
+            "/base64-encode" => {
+                if self.buffer.is_empty() {
+                    self.error_message = Some("Error: Buffer is empty".to_string());
+                    return;
+                }
+
+                let encoded = general_purpose::STANDARD.encode(self.buffer.as_bytes());
+                self.buffer = encoded;
+                self.scroll_pos = 0;
+            }
+            _ => {
+                self.error_message = Some(format!("Error: Unknown command '{}'", command));
+            }
         }
     }
 }
