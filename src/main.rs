@@ -5,7 +5,7 @@ use ratatui::{
     style::Stylize,
     symbols::border,
     text::Line,
-    widgets::{Block, Paragraph, Widget},
+    widgets::{Block, BorderType, Paragraph, Widget},
 };
 use std::io::Result;
 
@@ -44,7 +44,8 @@ impl Widget for &App {
         let title = Line::from(" POMP ".bold());
         let block = Block::bordered()
             .title(title.centered())
-            .border_set(border::THICK);
+            .border_set(border::THICK)
+            .border_type(BorderType::Rounded);
         Paragraph::new("hi there")
             .centered()
             .block(block)
