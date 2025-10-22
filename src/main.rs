@@ -19,6 +19,7 @@ pub struct App {
     buffer: String,
     scroll_pos: usize,
     clipboard: Clipboard,
+    error_message: Option<String>,
 }
 
 impl Default for App {
@@ -30,6 +31,7 @@ impl Default for App {
             buffer: String::new(),
             scroll_pos: 0,
             clipboard: Clipboard::new().unwrap(),
+            error_message: None,
         }
     }
 }
@@ -163,8 +165,12 @@ impl Widget for &App {
         let inner_area = container.inner(area);
         container.render(area, buf);
 
-        let chunks =
-            Layout::vertical([Constraint::Min(1), Constraint::Length(3)]).split(inner_area);
+        let chunks = Layout::vertical([
+            Constraint::Min(1),
+            Constraint::Length(3),
+            Constraint::Length(1),
+        ])
+        .split(inner_area);
 
         // Render buffer in the top chunk
         let buffer_block = Block::bordered().border_set(border::EMPTY);
@@ -203,7 +209,14 @@ impl Widget for &App {
 
         Paragraph::new(text_with_cursor)
             .block(input_block)
-            .render(chunks[1], buf)
+            .render(chunks[1], buf);
+
+        // Render error message area
+        if let Some(error) = &self.error_message {
+            Paragraph::new(error.as_str())
+                .style(ratatui::style::Style::default().fg(ratatui::style::Color::Red))
+                .render(chunks[2], buf);
+        }
     }
 }
 
