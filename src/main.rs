@@ -192,20 +192,17 @@ impl Widget for &App {
             .block(buffer_block)
             .render(chunks[0], buf);
 
-        let input_title = Line::from("Input");
-
         let input_block = Block::bordered()
-            .title(input_title.left_aligned())
             .border_set(border::PLAIN)
             .border_type(BorderType::Rounded);
 
         let input_len = self.input.len_chars();
         let text_with_cursor = if self.cursor_pos >= input_len {
-            format!("{}█", self.input)
+            format!("> {}█", self.input)
         } else {
             let before = self.input.slice(..self.cursor_pos).to_string();
             let after = self.input.slice(self.cursor_pos + 1..).to_string();
-            format!("{}█{}", before, after)
+            format!("> {}█{}", before, after)
         };
 
         Paragraph::new(text_with_cursor)
