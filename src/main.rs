@@ -1,3 +1,4 @@
+use arboard::Clipboard;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{
     DefaultTerminal, Frame,
@@ -11,13 +12,13 @@ use ratatui::{
 use ropey::Rope;
 use std::io::Result;
 
-#[derive(Debug)]
 pub struct App {
     exit: bool,
     input: Rope,
     cursor_pos: usize,
     buffer: String,
     scroll_pos: usize,
+    clipboard: Clipboard,
 }
 
 impl Default for App {
@@ -28,6 +29,7 @@ impl Default for App {
             cursor_pos: 0,
             buffer: String::new(),
             scroll_pos: 0,
+            clipboard: Clipboard::new().unwrap(),
         }
     }
 }
@@ -55,70 +57,81 @@ impl App {
     }
 
     fn handle_key_event(&mut self, key: KeyEvent) {
-            match key.code {
-                KeyCode::Char('c') | KeyCode::Char('d')
-                    if key.modifiers.contains(KeyModifiers::CONTROL) =>
-                {
-                    self.exit = true;
-                }
-                KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                    self.cursor_pos = 0;
-                }
-                KeyCode::Char('e') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                    self.cursor_pos = self.input.len_chars();
-                }
-                KeyCode::Char(c) => {
-                    self.input.insert_char(self.cursor_pos, c);
-                    self.cursor_pos += 1;
-                }
-                KeyCode::Backspace => {
-                    if self.cursor_pos > 0 {
-                        self.cursor_pos -= 1;
-                        self.input.remove(self.cursor_pos..self.cursor_pos + 1);
-                    }
-                }
-                KeyCode::Delete => {
-                    if self.cursor_pos < self.input.len_chars() {
-                        self.input.remove(self.cursor_pos..self.cursor_pos + 1);
-                    }
-                }
-                KeyCode::Left => {
-                    if self.cursor_pos > 0 {
-                        self.cursor_pos -= 1;
-                    }
-                }
-                KeyCode::Right => {
-                    if self.cursor_pos < self.input.len_chars() {
+        match key.code {
+            KeyCode::Char('c') | KeyCode::Char('d')
+                if key.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                self.exit = true;
+            }
+            KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.cursor_pos = 0;
+            }
+            KeyCode::Char('e') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.cursor_pos = self.input.len_chars();
+            }
+            KeyCode::Char('v')
+                if key.modifiers.contains(KeyModifiers::CONTROL)
+                    || key.modifiers.contains(KeyModifiers::SUPER) =>
+            {
+                if let Ok(text) = self.clipboard.get_text() {
+                    for ch in text.chars() {
+                        self.input.insert_char(self.cursor_pos, ch);
                         self.cursor_pos += 1;
                     }
                 }
-                KeyCode::Home => {
+            }
+            KeyCode::Char(c) => {
+                self.input.insert_char(self.cursor_pos, c);
+                self.cursor_pos += 1;
+            }
+            KeyCode::Backspace => {
+                if self.cursor_pos > 0 {
+                    self.cursor_pos -= 1;
+                    self.input.remove(self.cursor_pos..self.cursor_pos + 1);
+                }
+            }
+            KeyCode::Delete => {
+                if self.cursor_pos < self.input.len_chars() {
+                    self.input.remove(self.cursor_pos..self.cursor_pos + 1);
+                }
+            }
+            KeyCode::Left => {
+                if self.cursor_pos > 0 {
+                    self.cursor_pos -= 1;
+                }
+            }
+            KeyCode::Right => {
+                if self.cursor_pos < self.input.len_chars() {
+                    self.cursor_pos += 1;
+                }
+            }
+            KeyCode::Home => {
+                self.cursor_pos = 0;
+            }
+            KeyCode::End => {
+                self.cursor_pos = self.input.len_chars();
+            }
+            KeyCode::Enter => {
+                if self.input.len_chars() > 0 {
+                    self.buffer = self.input.to_string();
+                    self.input = Rope::new();
                     self.cursor_pos = 0;
                 }
-                KeyCode::End => {
-                    self.cursor_pos = self.input.len_chars();
-                }
-                KeyCode::Enter => {
-                    if self.input.len_chars() > 0 {
-                        self.buffer = self.input.to_string();
-                        self.input = Rope::new();
-                        self.cursor_pos = 0;
-                    }
-                }
-                KeyCode::PageUp => {
-                    self.scroll_pos = self.scroll_pos.saturating_sub(10);
-                }
-                KeyCode::PageDown => {
-                    let buffer_lines = self.buffer.lines().count();
-                    if buffer_lines > 0 {
-                        self.scroll_pos = (self.scroll_pos + 10).min(buffer_lines.saturating_sub(1));
-                    }
-                }
-                KeyCode::Esc => {
-                    self.exit = true;
-                }
-                _ => {}
             }
+            KeyCode::PageUp => {
+                self.scroll_pos = self.scroll_pos.saturating_sub(10);
+            }
+            KeyCode::PageDown => {
+                let buffer_lines = self.buffer.lines().count();
+                if buffer_lines > 0 {
+                    self.scroll_pos = (self.scroll_pos + 10).min(buffer_lines.saturating_sub(1));
+                }
+            }
+            KeyCode::Esc => {
+                self.exit = true;
+            }
+            _ => {}
+        }
     }
 
     fn handle_mouse_event(&mut self, mouse: MouseEvent) {
@@ -204,18 +217,12 @@ impl Widget for &App {
 fn main() -> Result<()> {
     let mut terminal = ratatui::init();
     terminal.clear()?;
-    crossterm::execute!(
-        std::io::stdout(),
-        crossterm::event::EnableMouseCapture
-    )?;
+    crossterm::execute!(std::io::stdout(), crossterm::event::EnableMouseCapture)?;
 
     let mut app = App::default();
     let result = app.run(&mut terminal);
 
-    crossterm::execute!(
-        std::io::stdout(),
-        crossterm::event::DisableMouseCapture
-    )?;
+    crossterm::execute!(std::io::stdout(), crossterm::event::DisableMouseCapture)?;
     ratatui::restore();
     result
 }
