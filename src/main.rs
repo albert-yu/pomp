@@ -167,11 +167,7 @@ impl Widget for &App {
             Layout::vertical([Constraint::Min(1), Constraint::Length(3)]).split(inner_area);
 
         // Render buffer in the top chunk
-        let buffer_title = Line::from("Buffer");
-        let buffer_block = Block::bordered()
-            .title(buffer_title.left_aligned())
-            .border_set(border::PLAIN)
-            .border_type(BorderType::Rounded);
+        let buffer_block = Block::bordered().border_set(border::EMPTY);
 
         let buffer_inner = buffer_block.inner(chunks[0]);
         let visible_height = buffer_inner.height as usize;
