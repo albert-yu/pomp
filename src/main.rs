@@ -16,6 +16,7 @@ pub struct App {
     exit: bool,
     input: Rope,
     cursor_pos: usize,
+    buffer: String,
 }
 
 impl Default for App {
@@ -24,6 +25,7 @@ impl Default for App {
             exit: false,
             input: Rope::new(),
             cursor_pos: 0,
+            buffer: String::new(),
         }
     }
 }
@@ -85,6 +87,13 @@ impl App {
                 }
                 KeyCode::End => {
                     self.cursor_pos = self.input.len_chars();
+                }
+                KeyCode::Enter => {
+                    if self.input.len_chars() > 0 {
+                        self.buffer = self.input.to_string();
+                        self.input = Rope::new();
+                        self.cursor_pos = 0;
+                    }
                 }
                 KeyCode::Esc => {
                     self.exit = true;
