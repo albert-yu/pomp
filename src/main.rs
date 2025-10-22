@@ -1,4 +1,4 @@
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Layout},
@@ -17,6 +17,7 @@ pub struct App {
     input: Rope,
     cursor_pos: usize,
     buffer: String,
+    scroll_pos: usize,
 }
 
 impl Default for App {
@@ -26,6 +27,7 @@ impl Default for App {
             input: Rope::new(),
             cursor_pos: 0,
             buffer: String::new(),
+            scroll_pos: 0,
         }
     }
 }
@@ -44,7 +46,15 @@ impl App {
     }
 
     fn handle_events(&mut self) -> Result<()> {
-        if let Event::Key(key) = event::read()? {
+        match event::read()? {
+            Event::Key(key) => self.handle_key_event(key),
+            Event::Mouse(mouse) => self.handle_mouse_event(mouse),
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn handle_key_event(&mut self, key: KeyEvent) {
             match key.code {
                 KeyCode::Char('c') | KeyCode::Char('d')
                     if key.modifiers.contains(KeyModifiers::CONTROL) =>
@@ -95,13 +105,35 @@ impl App {
                         self.cursor_pos = 0;
                     }
                 }
+                KeyCode::PageUp => {
+                    self.scroll_pos = self.scroll_pos.saturating_sub(10);
+                }
+                KeyCode::PageDown => {
+                    let buffer_lines = self.buffer.lines().count();
+                    if buffer_lines > 0 {
+                        self.scroll_pos = (self.scroll_pos + 10).min(buffer_lines.saturating_sub(1));
+                    }
+                }
                 KeyCode::Esc => {
                     self.exit = true;
                 }
                 _ => {}
             }
+    }
+
+    fn handle_mouse_event(&mut self, mouse: MouseEvent) {
+        match mouse.kind {
+            MouseEventKind::ScrollUp => {
+                self.scroll_pos = self.scroll_pos.saturating_sub(3);
+            }
+            MouseEventKind::ScrollDown => {
+                let buffer_lines = self.buffer.lines().count();
+                if buffer_lines > 0 {
+                    self.scroll_pos = (self.scroll_pos + 3).min(buffer_lines.saturating_sub(1));
+                }
+            }
+            _ => {}
         }
-        Ok(())
     }
 }
 
@@ -120,6 +152,32 @@ impl Widget for &App {
 
         let chunks =
             Layout::vertical([Constraint::Min(1), Constraint::Length(3)]).split(inner_area);
+
+        // Render buffer in the top chunk
+        let buffer_title = Line::from("Buffer");
+        let buffer_block = Block::bordered()
+            .title(buffer_title.left_aligned())
+            .border_set(border::PLAIN)
+            .border_type(BorderType::Rounded);
+
+        let buffer_inner = buffer_block.inner(chunks[0]);
+        let visible_height = buffer_inner.height as usize;
+
+        // Split buffer into lines and calculate visible portion
+        let buffer_lines: Vec<&str> = self.buffer.lines().collect();
+        let total_lines = buffer_lines.len();
+        let start_line = self.scroll_pos.min(total_lines.saturating_sub(1));
+        let end_line = (start_line + visible_height).min(total_lines);
+
+        let visible_text = if buffer_lines.is_empty() {
+            String::new()
+        } else {
+            buffer_lines[start_line..end_line].join("\n")
+        };
+
+        Paragraph::new(visible_text)
+            .block(buffer_block)
+            .render(chunks[0], buf);
 
         let input_title = Line::from("Input");
 
@@ -145,8 +203,19 @@ impl Widget for &App {
 
 fn main() -> Result<()> {
     let mut terminal = ratatui::init();
+    terminal.clear()?;
+    crossterm::execute!(
+        std::io::stdout(),
+        crossterm::event::EnableMouseCapture
+    )?;
+
     let mut app = App::default();
     let result = app.run(&mut terminal);
+
+    crossterm::execute!(
+        std::io::stdout(),
+        crossterm::event::DisableMouseCapture
+    )?;
     ratatui::restore();
     result
 }
