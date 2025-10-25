@@ -3,12 +3,12 @@ use base64::{Engine as _, engine::general_purpose};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{
     DefaultTerminal, Frame,
-    layout::{Constraint, Layout},
+    layout::{Constraint, Layout, Alignment},
     prelude::Rect,
-    style::Stylize,
+    style::{Stylize, Style, Color},
     symbols::border,
     text::Line,
-    widgets::{Block, Borders, Paragraph, Widget},
+    widgets::{Block, Borders, Paragraph, Widget, List, ListItem},
 };
 use ropey::Rope;
 use std::io::Result;
@@ -21,6 +21,7 @@ pub struct App {
     scroll_pos: usize,
     clipboard: Clipboard,
     error_message: Option<String>,
+    autocomplete_index: Option<usize>,
 }
 
 impl Default for App {
@@ -33,6 +34,7 @@ impl Default for App {
             scroll_pos: 0,
             clipboard: Clipboard::new().unwrap(),
             error_message: None,
+            autocomplete_index: None,
         }
     }
 }
@@ -44,6 +46,22 @@ impl App {
             self.handle_events()?;
         }
         Ok(())
+    }
+
+    fn get_available_commands() -> Vec<&'static str> {
+        vec!["/base64-decode", "/base64-encode"]
+    }
+
+    fn get_filtered_commands(&self) -> Vec<&'static str> {
+        let input_text = self.input.to_string();
+        if !input_text.starts_with('/') {
+            return vec![];
+        }
+
+        Self::get_available_commands()
+            .into_iter()
+            .filter(|cmd| cmd.starts_with(&input_text))
+            .collect()
     }
 
     fn draw(&self, frame: &mut Frame) {
@@ -83,19 +101,32 @@ impl App {
                     }
                 }
             }
+            KeyCode::Tab => {
+                let filtered = self.get_filtered_commands();
+                if !filtered.is_empty() {
+                    if let Some(index) = self.autocomplete_index {
+                        self.autocomplete_index = Some((index + 1) % filtered.len());
+                    } else {
+                        self.autocomplete_index = Some(0);
+                    }
+                }
+            }
             KeyCode::Char(c) => {
                 self.input.insert_char(self.cursor_pos, c);
                 self.cursor_pos += 1;
+                self.autocomplete_index = None;
             }
             KeyCode::Backspace => {
                 if self.cursor_pos > 0 {
                     self.cursor_pos -= 1;
                     self.input.remove(self.cursor_pos..self.cursor_pos + 1);
+                    self.autocomplete_index = None;
                 }
             }
             KeyCode::Delete => {
                 if self.cursor_pos < self.input.len_chars() {
                     self.input.remove(self.cursor_pos..self.cursor_pos + 1);
+                    self.autocomplete_index = None;
                 }
             }
             KeyCode::Left => {
@@ -115,6 +146,17 @@ impl App {
                 self.cursor_pos = self.input.len_chars();
             }
             KeyCode::Enter => {
+                // Check if autocomplete is active
+                let filtered = self.get_filtered_commands();
+                if let Some(index) = self.autocomplete_index {
+                    if let Some(command) = filtered.get(index) {
+                        self.input = Rope::from(*command);
+                        self.cursor_pos = self.input.len_chars();
+                        self.autocomplete_index = None;
+                        return;
+                    }
+                }
+
                 if self.input.len_chars() > 0 {
                     let input_text = self.input.to_string();
 
@@ -127,6 +169,7 @@ impl App {
 
                     self.input = Rope::new();
                     self.cursor_pos = 0;
+                    self.autocomplete_index = None;
                 }
             }
             KeyCode::PageUp => {
@@ -259,6 +302,45 @@ impl Widget for &App {
         Paragraph::new(text_with_cursor)
             .block(input_block)
             .render(chunks[1], buf);
+
+        // Render autocomplete popup if input starts with '/'
+        let filtered_commands = self.get_filtered_commands();
+        if !filtered_commands.is_empty() {
+            let popup_height = (filtered_commands.len() as u16 + 2).min(10);
+            let popup_width = 30;
+
+            // Position popup above the input box
+            let popup_x = chunks[1].x;
+            let popup_y = chunks[1].y.saturating_sub(popup_height);
+
+            let popup_area = Rect {
+                x: popup_x,
+                y: popup_y,
+                width: popup_width.min(chunks[1].width),
+                height: popup_height,
+            };
+
+            let items: Vec<ListItem> = filtered_commands
+                .iter()
+                .enumerate()
+                .map(|(i, cmd)| {
+                    let item = ListItem::new(*cmd);
+                    if Some(i) == self.autocomplete_index {
+                        item.style(Style::default().bg(Color::White).fg(Color::Black))
+                    } else {
+                        item
+                    }
+                })
+                .collect();
+
+            let list = List::new(items)
+                .block(Block::bordered()
+                    .title("Commands")
+                    .border_set(border::PLAIN))
+                .style(Style::default().bg(Color::Black));
+
+            list.render(popup_area, buf);
+        }
 
         // Render error message area
         if let Some(error) = &self.error_message {
