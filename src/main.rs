@@ -50,7 +50,7 @@ impl App {
     }
 
     fn get_available_commands() -> Vec<&'static str> {
-        vec!["/base64-decode", "/base64-encode", "/copy", "/json-format"]
+        vec!["/base64-decode", "/base64-encode", "/copy", "/json-format", "/json-minify"]
     }
 
     fn get_filtered_commands(&self) -> Vec<&'static str> {
@@ -281,6 +281,27 @@ impl App {
                         }
                         Err(_) => {
                             self.error_message = Some("Error: Failed to format JSON".to_string());
+                        }
+                    },
+                    Err(e) => {
+                        self.error_message = Some(format!("Error: Invalid JSON - {}", e));
+                    }
+                }
+            }
+            "/json-minify" => {
+                if self.buffer.is_empty() {
+                    self.error_message = Some("Error: Buffer is empty".to_string());
+                    return;
+                }
+
+                match serde_json::from_str::<Value>(&self.buffer) {
+                    Ok(json_value) => match serde_json::to_string(&json_value) {
+                        Ok(minified) => {
+                            self.buffer = minified;
+                            self.scroll_pos = 0;
+                        }
+                        Err(_) => {
+                            self.error_message = Some("Error: Failed to minify JSON".to_string());
                         }
                     },
                     Err(e) => {
