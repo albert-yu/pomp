@@ -340,7 +340,8 @@ impl App {
                                 self.scroll_pos = 0;
                             }
                             Err(_) => {
-                                self.error_message = Some("Error: Failed to format CSS".to_string());
+                                self.error_message =
+                                    Some("Error: Failed to format CSS".to_string());
                             }
                         }
                     }
@@ -359,7 +360,8 @@ impl App {
                 match StyleSheet::parse(&buffer_clone, ParserOptions::default()) {
                     Ok(mut stylesheet) => {
                         if let Err(e) = stylesheet.minify(MinifyOptions::default()) {
-                            self.error_message = Some(format!("Error: Failed to minify CSS - {}", e));
+                            self.error_message =
+                                Some(format!("Error: Failed to minify CSS - {}", e));
                             return;
                         }
                         let printer_options = PrinterOptions {
@@ -372,7 +374,8 @@ impl App {
                                 self.scroll_pos = 0;
                             }
                             Err(_) => {
-                                self.error_message = Some("Error: Failed to minify CSS".to_string());
+                                self.error_message =
+                                    Some("Error: Failed to minify CSS".to_string());
                             }
                         }
                     }
@@ -393,10 +396,21 @@ impl Widget for &App {
     where
         Self: Sized,
     {
+        // Calculate input lines and height
+        let input_text = self.input.to_string();
+        let input_line_count = if input_text.is_empty() {
+            1
+        } else {
+            input_text.lines().count().max(1)
+        };
+        let max_visible_lines = 5;
+        let visible_input_lines = input_line_count.min(max_visible_lines);
+        let input_height = visible_input_lines as u16 + 2; // +2 for borders
+
         // Split the main area into buffer, input, and error sections
         let chunks = Layout::vertical([
             Constraint::Min(1),
-            Constraint::Length(3),
+            Constraint::Length(input_height),
             Constraint::Length(1),
         ])
         .split(area);
@@ -431,12 +445,23 @@ impl Widget for &App {
             .borders(Borders::TOP | Borders::BOTTOM)
             .border_set(border::PLAIN);
 
-        let input_len = self.input.len_chars();
-        let text_with_cursor = if self.cursor_pos >= input_len {
-            format!("> {}█", self.input)
+        // Build input text with cursor and handle multiple lines
+        let input_display = if input_line_count > max_visible_lines {
+            // Show only first 5 lines if there are more
+            let lines: Vec<&str> = input_text.lines().collect();
+            lines[..max_visible_lines].join("\n")
         } else {
-            let before = self.input.slice(..self.cursor_pos).to_string();
-            let after = self.input.slice(self.cursor_pos + 1..).to_string();
+            input_text.clone()
+        };
+
+        let display_len = input_display.chars().count();
+        let cursor_in_display = self.cursor_pos.min(display_len);
+
+        let text_with_cursor = if cursor_in_display >= display_len {
+            format!("> {}█", input_display)
+        } else {
+            let before: String = input_display.chars().take(cursor_in_display).collect();
+            let after: String = input_display.chars().skip(cursor_in_display + 1).collect();
             format!("> {}█{}", before, after)
         };
 
@@ -492,6 +517,17 @@ impl Widget for &App {
         if let Some(error) = &self.error_message {
             Paragraph::new(error.as_str())
                 .style(Style::default().fg(Color::Red))
+                .render(chunks[2], buf);
+        } else if input_line_count > max_visible_lines {
+            // Show remaining line count if input has more than 5 lines
+            let remaining = input_line_count - max_visible_lines;
+            let message = format!(
+                "{} more line{}",
+                remaining,
+                if remaining == 1 { "" } else { "s" }
+            );
+            Paragraph::new(message)
+                .style(Style::default().fg(Color::Gray))
                 .render(chunks[2], buf);
         } else if let Some(info) = &self.info_message {
             Paragraph::new(info.as_str())
