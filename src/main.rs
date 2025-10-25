@@ -1,8 +1,7 @@
 mod cmds;
 
 use arboard::Clipboard;
-use base64::{Engine as _, engine::general_purpose};
-use cmds::base64_decode;
+use cmds::{base64_decode, base64_encode};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
 use ratatui::{
@@ -435,7 +434,7 @@ impl App {
                     return;
                 }
 
-                let encoded = general_purpose::STANDARD.encode(self.buffer.as_bytes());
+                let encoded = base64_encode(self.buffer.as_str());
                 self.buffer = encoded;
                 self.scroll_pos = 0;
             }

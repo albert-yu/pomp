@@ -39,3 +39,8 @@ pub fn base64_decode(buffer: &str) -> Result<String, DecodeError> {
     let decoded_str = String::from_utf8(decoded_bytes)?;
     Ok(decoded_str)
 }
+
+pub fn base64_encode(buffer: &str) -> String {
+    let encoded = general_purpose::STANDARD.encode(buffer.as_bytes());
+    encoded
+}
