@@ -72,6 +72,12 @@ impl App {
         match event::read()? {
             Event::Key(key) => self.handle_key_event(key),
             Event::Mouse(mouse) => self.handle_mouse_event(mouse),
+            Event::Paste(text) => {
+                let text_len = text.chars().count();
+                self.input.insert(self.cursor_pos, &text);
+                self.cursor_pos += text_len;
+                self.autocomplete_index = None;
+            }
             _ => {}
         }
         Ok(())
@@ -95,10 +101,9 @@ impl App {
                     || key.modifiers.contains(KeyModifiers::SUPER) =>
             {
                 if let Ok(text) = self.clipboard.get_text() {
-                    for ch in text.chars() {
-                        self.input.insert_char(self.cursor_pos, ch);
-                        self.cursor_pos += 1;
-                    }
+                    let text_len = text.chars().count();
+                    self.input.insert(self.cursor_pos, &text);
+                    self.cursor_pos += text_len;
                 }
             }
             KeyCode::Tab => {
@@ -369,12 +374,20 @@ impl Widget for &App {
 fn main() -> Result<()> {
     let mut terminal = ratatui::init();
     terminal.clear()?;
-    crossterm::execute!(std::io::stdout(), crossterm::event::EnableMouseCapture)?;
+    crossterm::execute!(
+        std::io::stdout(),
+        crossterm::event::EnableMouseCapture,
+        crossterm::event::EnableBracketedPaste
+    )?;
 
     let mut app = App::default();
     let result = app.run(&mut terminal);
 
-    crossterm::execute!(std::io::stdout(), crossterm::event::DisableMouseCapture)?;
+    crossterm::execute!(
+        std::io::stdout(),
+        crossterm::event::DisableMouseCapture,
+        crossterm::event::DisableBracketedPaste
+    )?;
     ratatui::restore();
     result
 }
