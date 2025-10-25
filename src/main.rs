@@ -1,6 +1,7 @@
 use arboard::Clipboard;
 use base64::{Engine as _, engine::general_purpose};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
+use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Layout},
@@ -50,7 +51,15 @@ impl App {
     }
 
     fn get_available_commands() -> Vec<&'static str> {
-        vec!["/base64-decode", "/base64-encode", "/copy", "/json-format", "/json-minify"]
+        vec![
+            "/base64-decode",
+            "/base64-encode",
+            "/copy",
+            "/css-format",
+            "/css-minify",
+            "/json-format",
+            "/json-minify",
+        ]
     }
 
     fn get_filtered_commands(&self) -> Vec<&'static str> {
@@ -306,6 +315,66 @@ impl App {
                     },
                     Err(e) => {
                         self.error_message = Some(format!("Error: Invalid JSON - {}", e));
+                    }
+                }
+            }
+            "/css-format" => {
+                if self.buffer.is_empty() {
+                    self.error_message = Some("Error: Buffer is empty".to_string());
+                    return;
+                }
+
+                let buffer_clone = self.buffer.clone();
+                match StyleSheet::parse(&buffer_clone, ParserOptions::default()) {
+                    Ok(stylesheet) => {
+                        let printer_options = PrinterOptions {
+                            minify: false,
+                            ..Default::default()
+                        };
+                        match stylesheet.to_css(printer_options) {
+                            Ok(result) => {
+                                self.buffer = result.code;
+                                self.scroll_pos = 0;
+                            }
+                            Err(_) => {
+                                self.error_message = Some("Error: Failed to format CSS".to_string());
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        self.error_message = Some(format!("Error: Invalid CSS - {}", e));
+                    }
+                }
+            }
+            "/css-minify" => {
+                if self.buffer.is_empty() {
+                    self.error_message = Some("Error: Buffer is empty".to_string());
+                    return;
+                }
+
+                let buffer_clone = self.buffer.clone();
+                match StyleSheet::parse(&buffer_clone, ParserOptions::default()) {
+                    Ok(mut stylesheet) => {
+                        if let Err(e) = stylesheet.minify(MinifyOptions::default()) {
+                            self.error_message = Some(format!("Error: Failed to minify CSS - {}", e));
+                            return;
+                        }
+                        let printer_options = PrinterOptions {
+                            minify: true,
+                            ..Default::default()
+                        };
+                        match stylesheet.to_css(printer_options) {
+                            Ok(result) => {
+                                self.buffer = result.code;
+                                self.scroll_pos = 0;
+                            }
+                            Err(_) => {
+                                self.error_message = Some("Error: Failed to minify CSS".to_string());
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        self.error_message = Some(format!("Error: Invalid CSS - {}", e));
                     }
                 }
             }
