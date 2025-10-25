@@ -284,10 +284,15 @@ impl App {
 
                 if self.input.len_chars() > 0 {
                     let input_text = self.input.to_string();
+                    let input_trimmed = input_text.trim();
 
-                    // Check if it's a slash command
-                    if input_text.starts_with('/') {
-                        self.handle_command(&input_text);
+                    // Check if it exactly matches a valid command
+                    let is_valid_command = App::get_available_commands()
+                        .iter()
+                        .any(|cmd| *cmd == input_trimmed);
+
+                    if is_valid_command {
+                        self.handle_command(input_trimmed);
                     } else {
                         self.buffer = input_text;
                     }
