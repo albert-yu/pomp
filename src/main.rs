@@ -209,22 +209,19 @@ impl Widget for &App {
     where
         Self: Sized,
     {
-        let title = Line::from(" POMP ".bold());
-        let container = Block::bordered()
-            .title(title.centered())
-            .border_set(border::EMPTY);
-        let inner_area = container.inner(area);
-        container.render(area, buf);
-
+        // Split the main area into buffer, input, and error sections
         let chunks = Layout::vertical([
             Constraint::Min(1),
             Constraint::Length(3),
             Constraint::Length(1),
         ])
-        .split(inner_area);
+        .split(area);
 
-        // Render buffer in the top chunk
-        let buffer_block = Block::bordered().border_set(border::EMPTY);
+        // Render buffer with POMP title in the top chunk
+        let title = Line::from(" POMP ".bold());
+        let buffer_block = Block::bordered()
+            .title(title.centered())
+            .border_set(border::EMPTY);
 
         let buffer_inner = buffer_block.inner(chunks[0]);
         let visible_height = buffer_inner.height as usize;
@@ -245,6 +242,7 @@ impl Widget for &App {
             .block(buffer_block)
             .render(chunks[0], buf);
 
+        // Render input with top and bottom borders that reach the edges
         let input_block = Block::default()
             .borders(Borders::TOP | Borders::BOTTOM)
             .border_set(border::PLAIN);
