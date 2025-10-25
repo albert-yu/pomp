@@ -599,8 +599,15 @@ impl Widget for &App {
             char_pos += cursor_col;
 
             let before: String = formatted_display.chars().take(char_pos).collect();
+            let char_at_cursor = formatted_display.chars().nth(char_pos);
             let after: String = formatted_display.chars().skip(char_pos + 1).collect();
-            format!("{}█{}", before, after)
+
+            // If cursor is on a newline, show cursor but keep the newline
+            if char_at_cursor == Some('\n') {
+                format!("{}█\n{}", before, after)
+            } else {
+                format!("{}█{}", before, after)
+            }
         } else {
             // Cursor not in visible area (shouldn't happen with proper scrolling)
             format!("{}█", formatted_display)
