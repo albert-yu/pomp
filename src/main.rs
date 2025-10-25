@@ -128,6 +128,7 @@ impl App {
             "/css-format",
             "/css-minify",
             "/cuid",
+            "/exit",
             "/json-format",
             "/json-minify",
             "/sha-256",
@@ -567,6 +568,9 @@ impl App {
                 let new_cuid = cuid::cuid2();
                 self.buffer = new_cuid;
                 self.scroll_pos = 0;
+            }
+            "/exit" => {
+                self.exit = true;
             }
             "/sha-256" => {
                 if self.buffer.is_empty() {
