@@ -613,9 +613,21 @@ impl Widget for &App {
             format!("{}█", formatted_display)
         };
 
-        Paragraph::new(text_with_cursor)
-            .block(input_block)
-            .render(chunks[1], buf);
+        // Check if input matches a command exactly
+        let input_trimmed = input_text.trim();
+        let is_valid_command = App::get_available_commands()
+            .iter()
+            .any(|cmd| *cmd == input_trimmed);
+
+        let input_paragraph = if is_valid_command {
+            Paragraph::new(text_with_cursor)
+                .block(input_block)
+                .style(Style::default().bold())
+        } else {
+            Paragraph::new(text_with_cursor).block(input_block)
+        };
+
+        input_paragraph.render(chunks[1], buf);
 
         // Render autocomplete popup if input starts with '/'
         let filtered_commands = self.get_filtered_commands();
