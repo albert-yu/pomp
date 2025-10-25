@@ -49,7 +49,7 @@ impl App {
     }
 
     fn get_available_commands() -> Vec<&'static str> {
-        vec!["/base64-decode", "/base64-encode"]
+        vec!["/base64-decode", "/base64-encode", "/copy"]
     }
 
     fn get_filtered_commands(&self) -> Vec<&'static str> {
@@ -239,6 +239,21 @@ impl App {
                 let encoded = general_purpose::STANDARD.encode(self.buffer.as_bytes());
                 self.buffer = encoded;
                 self.scroll_pos = 0;
+            }
+            "/copy" => {
+                if self.buffer.is_empty() {
+                    self.error_message = Some("Error: Buffer is empty".to_string());
+                    return;
+                }
+
+                match self.clipboard.set_text(&self.buffer) {
+                    Ok(_) => {
+                        // Successfully copied, no error message needed
+                    }
+                    Err(_) => {
+                        self.error_message = Some("Error: Failed to copy to clipboard".to_string());
+                    }
+                }
             }
             _ => {
                 self.error_message = Some(format!("Error: Unknown command '{}'", command));
