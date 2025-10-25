@@ -122,6 +122,7 @@ impl App {
             "/copy",
             "/css-format",
             "/css-minify",
+            "/cuid",
             "/json-format",
             "/json-minify",
             "/sha-256",
@@ -500,6 +501,11 @@ impl App {
                         self.error_message = Some(format!("Error: Invalid CSS - {}", e));
                     }
                 }
+            }
+            "/cuid" => {
+                let new_cuid = cuid::cuid2();
+                self.buffer = new_cuid;
+                self.scroll_pos = 0;
             }
             "/sha-256" => {
                 if self.buffer.is_empty() {
