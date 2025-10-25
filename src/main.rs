@@ -8,7 +8,7 @@ use ratatui::{
     style::Stylize,
     symbols::border,
     text::Line,
-    widgets::{Block, BorderType, Paragraph, Widget},
+    widgets::{Block, Borders, Paragraph, Widget},
 };
 use ropey::Rope;
 use std::io::Result;
@@ -245,9 +245,9 @@ impl Widget for &App {
             .block(buffer_block)
             .render(chunks[0], buf);
 
-        let input_block = Block::bordered()
-            .border_set(border::PLAIN)
-            .border_type(BorderType::Rounded);
+        let input_block = Block::default()
+            .borders(Borders::TOP | Borders::BOTTOM)
+            .border_set(border::PLAIN);
 
         let input_len = self.input.len_chars();
         let text_with_cursor = if self.cursor_pos >= input_len {
