@@ -28,6 +28,8 @@ pub struct App {
     info_message: Option<String>,
     autocomplete_index: Option<usize>,
     input_scroll_line: usize,
+    undo_stack: Vec<String>,
+    redo_stack: Vec<String>,
 }
 
 impl Default for App {
@@ -43,6 +45,8 @@ impl Default for App {
             info_message: Some("Press / to show available commands".to_string()),
             autocomplete_index: None,
             input_scroll_line: 0,
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
         }
     }
 }
@@ -165,6 +169,18 @@ impl App {
 
     fn handle_key_event(&mut self, key: KeyEvent) {
         match key.code {
+            KeyCode::Char('z')
+                if key.modifiers.contains(KeyModifiers::CONTROL)
+                    || key.modifiers.contains(KeyModifiers::SUPER) =>
+            {
+                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                    // Redo
+                    self.redo();
+                } else {
+                    // Undo
+                    self.undo();
+                }
+            }
             KeyCode::Char('c') | KeyCode::Char('d')
                 if key.modifiers.contains(KeyModifiers::CONTROL) =>
             {
@@ -299,6 +315,8 @@ impl App {
                     if is_valid_command {
                         self.handle_command(input_trimmed);
                     } else {
+                        // Save current buffer to undo stack before replacing
+                        self.push_undo();
                         self.buffer = input_text;
                     }
 
@@ -346,7 +364,48 @@ impl App {
         }
     }
 
+    fn push_undo(&mut self) {
+        const MAX_STACK_SIZE: usize = 500;
+
+        self.undo_stack.push(self.buffer.clone());
+
+        // Keep stack size under limit
+        if self.undo_stack.len() > MAX_STACK_SIZE {
+            self.undo_stack.remove(0);
+        }
+
+        // Clear redo stack on new action
+        self.redo_stack.clear();
+    }
+
+    fn undo(&mut self) {
+        if let Some(previous_buffer) = self.undo_stack.pop() {
+            // Push current buffer to redo stack
+            self.redo_stack.push(self.buffer.clone());
+
+            // Restore previous buffer
+            self.buffer = previous_buffer;
+            self.scroll_pos = 0;
+            self.info_message = Some("Undo".to_string());
+        }
+    }
+
+    fn redo(&mut self) {
+        if let Some(next_buffer) = self.redo_stack.pop() {
+            // Push current buffer to undo stack
+            self.undo_stack.push(self.buffer.clone());
+
+            // Restore next buffer
+            self.buffer = next_buffer;
+            self.scroll_pos = 0;
+            self.info_message = Some("Redo".to_string());
+        }
+    }
+
     fn handle_command(&mut self, command: &str) {
+        // Save current buffer state before command execution
+        self.push_undo();
+
         // Clear any previous error and info message
         self.error_message = None;
         self.info_message = None;
