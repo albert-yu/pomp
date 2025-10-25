@@ -25,6 +25,7 @@ pub struct App {
     error_message: Option<String>,
     info_message: Option<String>,
     autocomplete_index: Option<usize>,
+    input_scroll_line: usize,
 }
 
 impl Default for App {
@@ -39,6 +40,7 @@ impl Default for App {
             error_message: None,
             info_message: Some("Press / to show available commands".to_string()),
             autocomplete_index: None,
+            input_scroll_line: 0,
         }
     }
 }
@@ -50,6 +52,66 @@ impl App {
             self.handle_events()?;
         }
         Ok(())
+    }
+
+    fn get_cursor_line_col(&self) -> (usize, usize) {
+        let text = self.input.to_string();
+        let mut line = 0;
+        let mut col = 0;
+        for (i, ch) in text.chars().enumerate() {
+            if i >= self.cursor_pos {
+                break;
+            }
+            if ch == '\n' {
+                line += 1;
+                col = 0;
+            } else {
+                col += 1;
+            }
+        }
+        (line, col)
+    }
+
+    fn set_cursor_from_line_col(&mut self, target_line: usize, target_col: usize) {
+        let text = self.input.to_string();
+        let mut line = 0;
+        let mut col = 0;
+        let mut pos = 0;
+
+        for ch in text.chars() {
+            if line == target_line && col == target_col {
+                break;
+            }
+            if line > target_line {
+                break;
+            }
+            if ch == '\n' {
+                if line == target_line {
+                    break;
+                }
+                line += 1;
+                col = 0;
+            } else {
+                col += 1;
+            }
+            pos += 1;
+        }
+        self.cursor_pos = pos;
+    }
+
+    fn adjust_input_scroll(&mut self) {
+        let (current_line, _) = self.get_cursor_line_col();
+        let max_visible_lines = 5;
+
+        // Scroll down if cursor is below visible area
+        if current_line >= self.input_scroll_line + max_visible_lines {
+            self.input_scroll_line = current_line - max_visible_lines + 1;
+        }
+
+        // Scroll up if cursor is above visible area
+        if current_line < self.input_scroll_line {
+            self.input_scroll_line = current_line;
+        }
     }
 
     fn get_available_commands() -> Vec<&'static str> {
@@ -89,6 +151,7 @@ impl App {
                 self.input.insert(self.cursor_pos, &text);
                 self.cursor_pos += text_len;
                 self.autocomplete_index = None;
+                self.adjust_input_scroll();
             }
             _ => {}
         }
@@ -132,37 +195,81 @@ impl App {
                 self.input.insert_char(self.cursor_pos, c);
                 self.cursor_pos += 1;
                 self.autocomplete_index = None;
+                self.adjust_input_scroll();
             }
             KeyCode::Backspace => {
                 if self.cursor_pos > 0 {
                     self.cursor_pos -= 1;
                     self.input.remove(self.cursor_pos..self.cursor_pos + 1);
                     self.autocomplete_index = None;
+                    self.adjust_input_scroll();
                 }
             }
             KeyCode::Delete => {
                 if self.cursor_pos < self.input.len_chars() {
                     self.input.remove(self.cursor_pos..self.cursor_pos + 1);
                     self.autocomplete_index = None;
+                    self.adjust_input_scroll();
+                }
+            }
+            KeyCode::Up => {
+                let (current_line, current_col) = self.get_cursor_line_col();
+                if current_line > 0 {
+                    self.set_cursor_from_line_col(current_line - 1, current_col);
+                    self.adjust_input_scroll();
+                }
+            }
+            KeyCode::Down => {
+                let (current_line, current_col) = self.get_cursor_line_col();
+                let text = self.input.to_string();
+                let total_lines = if text.is_empty() {
+                    1
+                } else {
+                    text.lines().count().max(1)
+                };
+                if current_line + 1 < total_lines {
+                    self.set_cursor_from_line_col(current_line + 1, current_col);
+                    self.adjust_input_scroll();
                 }
             }
             KeyCode::Left => {
                 if self.cursor_pos > 0 {
                     self.cursor_pos -= 1;
+                    self.adjust_input_scroll();
                 }
             }
             KeyCode::Right => {
                 if self.cursor_pos < self.input.len_chars() {
                     self.cursor_pos += 1;
+                    self.adjust_input_scroll();
                 }
             }
             KeyCode::Home => {
-                self.cursor_pos = 0;
+                let (current_line, _) = self.get_cursor_line_col();
+                self.set_cursor_from_line_col(current_line, 0);
+                self.adjust_input_scroll();
             }
             KeyCode::End => {
-                self.cursor_pos = self.input.len_chars();
+                let text = self.input.to_string();
+                let (current_line, _) = self.get_cursor_line_col();
+                let lines: Vec<&str> = text.lines().collect();
+                if current_line < lines.len() {
+                    let line_length = lines[current_line].chars().count();
+                    self.set_cursor_from_line_col(current_line, line_length);
+                } else {
+                    self.cursor_pos = self.input.len_chars();
+                }
+                self.adjust_input_scroll();
             }
             KeyCode::Enter => {
+                // Check for Shift+Enter to insert newline
+                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                    self.input.insert_char(self.cursor_pos, '\n');
+                    self.cursor_pos += 1;
+                    self.adjust_input_scroll();
+                    return;
+                }
+
                 // Check if autocomplete is active
                 let filtered = self.get_filtered_commands();
                 if let Some(index) = self.autocomplete_index {
@@ -170,6 +277,7 @@ impl App {
                         self.input = Rope::from(*command);
                         self.cursor_pos = self.input.len_chars();
                         self.autocomplete_index = None;
+                        self.input_scroll_line = 0;
                         return;
                     }
                 }
@@ -187,6 +295,7 @@ impl App {
                     self.input = Rope::new();
                     self.cursor_pos = 0;
                     self.autocomplete_index = None;
+                    self.input_scroll_line = 0;
                 }
             }
             KeyCode::PageUp => {
@@ -205,6 +314,7 @@ impl App {
                     self.autocomplete_index = None;
                     self.input = Rope::new();
                     self.cursor_pos = 0;
+                    self.input_scroll_line = 0;
                 }
             }
             _ => {}
@@ -446,23 +556,39 @@ impl Widget for &App {
             .border_set(border::PLAIN);
 
         // Build input text with cursor and handle multiple lines
-        let input_display = if input_line_count > max_visible_lines {
-            // Show only first 5 lines if there are more
-            let lines: Vec<&str> = input_text.lines().collect();
-            lines[..max_visible_lines].join("\n")
+        let all_lines: Vec<&str> = input_text.lines().collect();
+        let start_line = self
+            .input_scroll_line
+            .min(input_line_count.saturating_sub(1));
+        let end_line = (start_line + max_visible_lines).min(input_line_count);
+
+        let visible_lines = if all_lines.is_empty() {
+            vec![""]
         } else {
-            input_text.clone()
+            all_lines[start_line..end_line].to_vec()
         };
 
-        let display_len = input_display.chars().count();
-        let cursor_in_display = self.cursor_pos.min(display_len);
+        let input_display = visible_lines.join("\n");
 
-        let text_with_cursor = if cursor_in_display >= display_len {
-            format!("> {}█", input_display)
-        } else {
-            let before: String = input_display.chars().take(cursor_in_display).collect();
-            let after: String = input_display.chars().skip(cursor_in_display + 1).collect();
+        // Build text with cursor, adjusting for scrolled lines
+        let (cursor_line, cursor_col) = self.get_cursor_line_col();
+        let text_with_cursor = if cursor_line >= start_line && cursor_line < end_line {
+            // Cursor is in visible area
+            let line_offset = cursor_line - start_line;
+            let mut char_pos = 0;
+            for i in 0..line_offset {
+                if i < visible_lines.len() {
+                    char_pos += visible_lines[i].chars().count() + 1; // +1 for newline
+                }
+            }
+            char_pos += cursor_col;
+
+            let before: String = input_display.chars().take(char_pos).collect();
+            let after: String = input_display.chars().skip(char_pos + 1).collect();
             format!("> {}█{}", before, after)
+        } else {
+            // Cursor not in visible area (shouldn't happen with proper scrolling)
+            format!("> {}█", input_display)
         };
 
         Paragraph::new(text_with_cursor)
@@ -519,16 +645,39 @@ impl Widget for &App {
                 .style(Style::default().fg(Color::Red))
                 .render(chunks[2], buf);
         } else if input_line_count > max_visible_lines {
-            // Show remaining line count if input has more than 5 lines
-            let remaining = input_line_count - max_visible_lines;
-            let message = format!(
-                "{} more line{}",
-                remaining,
-                if remaining == 1 { "" } else { "s" }
-            );
-            Paragraph::new(message)
-                .style(Style::default().fg(Color::Gray))
-                .render(chunks[2], buf);
+            // Show remaining line count if input has more than 5 lines and we're at the bottom
+            let remaining_above = self.input_scroll_line;
+            let remaining_below =
+                input_line_count.saturating_sub(self.input_scroll_line + max_visible_lines);
+
+            let message = if remaining_above > 0 && remaining_below > 0 {
+                format!(
+                    "{} more line{} above, {} below",
+                    remaining_above,
+                    if remaining_above == 1 { "" } else { "s" },
+                    remaining_below
+                )
+            } else if remaining_above > 0 {
+                format!(
+                    "{} more line{} above",
+                    remaining_above,
+                    if remaining_above == 1 { "" } else { "s" }
+                )
+            } else if remaining_below > 0 {
+                format!(
+                    "{} more line{} below",
+                    remaining_below,
+                    if remaining_below == 1 { "" } else { "s" }
+                )
+            } else {
+                String::new()
+            };
+
+            if !message.is_empty() {
+                Paragraph::new(message)
+                    .style(Style::default().fg(Color::Gray))
+                    .render(chunks[2], buf);
+            }
         } else if let Some(info) = &self.info_message {
             Paragraph::new(info.as_str())
                 .style(Style::default().fg(Color::Gray))
