@@ -23,6 +23,7 @@ pub struct App {
     scroll_pos: usize,
     clipboard: Clipboard,
     error_message: Option<String>,
+    info_message: Option<String>,
     autocomplete_index: Option<usize>,
 }
 
@@ -36,6 +37,7 @@ impl Default for App {
             scroll_pos: 0,
             clipboard: Clipboard::new().unwrap(),
             error_message: None,
+            info_message: Some("Press / to show available commands".to_string()),
             autocomplete_index: None,
         }
     }
@@ -225,8 +227,9 @@ impl App {
     }
 
     fn handle_command(&mut self, command: &str) {
-        // Clear any previous error
+        // Clear any previous error and info message
         self.error_message = None;
+        self.info_message = None;
 
         match command.trim() {
             "/base64-decode" => {
@@ -269,7 +272,7 @@ impl App {
 
                 match self.clipboard.set_text(&self.buffer) {
                     Ok(_) => {
-                        // Successfully copied, no error message needed
+                        self.info_message = Some("Copied to clipboard".to_string());
                     }
                     Err(_) => {
                         self.error_message = Some("Error: Failed to copy to clipboard".to_string());
@@ -485,10 +488,14 @@ impl Widget for &App {
             list.render(popup_area, buf);
         }
 
-        // Render error message area
+        // Render error or info message area
         if let Some(error) = &self.error_message {
             Paragraph::new(error.as_str())
-                .style(ratatui::style::Style::default().fg(ratatui::style::Color::Red))
+                .style(Style::default().fg(Color::Red))
+                .render(chunks[2], buf);
+        } else if let Some(info) = &self.info_message {
+            Paragraph::new(info.as_str())
+                .style(Style::default().fg(Color::Gray))
                 .render(chunks[2], buf);
         }
     }
