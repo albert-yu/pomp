@@ -9,7 +9,7 @@ use ratatui::{
     style::{Color, Style, Stylize},
     symbols::border,
     text::Line,
-    widgets::{Block, Borders, List, ListItem, Paragraph, Widget},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Widget},
 };
 use ropey::Rope;
 use serde_json::Value;
@@ -470,6 +470,9 @@ impl Widget for &App {
                     }
                 })
                 .collect();
+
+            // Clear the popup area to ensure opaque background
+            Clear.render(popup_area, buf);
 
             let list = List::new(items)
                 .block(
