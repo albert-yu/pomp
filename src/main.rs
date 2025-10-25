@@ -1,5 +1,5 @@
 use arboard::Clipboard;
-use base64::{engine::general_purpose, Engine as _};
+use base64::{Engine as _, engine::general_purpose};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
 use ratatui::{
@@ -620,8 +620,7 @@ impl Widget for &App {
         ])
         .split(area);
 
-        // Render buffer with POMP title in the top chunk
-        let title = Line::from(" POMP ".bold());
+        let title = Line::from(" pomp ".bold());
         let buffer_block = Block::bordered()
             .title(title.centered())
             .border_set(border::EMPTY);
@@ -667,13 +666,17 @@ impl Widget for &App {
         let (cursor_line, cursor_col) = self.get_cursor_line_col();
 
         // Add proper prefixes to each line (> for first line, spaces for continuation lines)
-        let formatted_lines: Vec<String> = visible_lines.iter().enumerate().map(|(i, line)| {
-            if i == 0 {
-                format!("> {}", line)
-            } else {
-                format!("  {}", line)
-            }
-        }).collect();
+        let formatted_lines: Vec<String> = visible_lines
+            .iter()
+            .enumerate()
+            .map(|(i, line)| {
+                if i == 0 {
+                    format!("> {}", line)
+                } else {
+                    format!("  {}", line)
+                }
+            })
+            .collect();
 
         let formatted_display = formatted_lines.join("\n");
 
