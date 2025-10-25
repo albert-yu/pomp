@@ -15,6 +15,7 @@ use ropey::Rope;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::io::Result;
+use uuid::Uuid;
 
 pub struct App {
     exit: bool,
@@ -126,6 +127,7 @@ impl App {
             "/json-format",
             "/json-minify",
             "/sha-256",
+            "/uuid",
         ]
     }
 
@@ -517,6 +519,11 @@ impl App {
                 hasher.update(self.buffer.as_bytes());
                 let result = hasher.finalize();
                 self.buffer = format!("{:x}", result);
+                self.scroll_pos = 0;
+            }
+            "/uuid" => {
+                let new_uuid = Uuid::new_v4();
+                self.buffer = new_uuid.to_string();
                 self.scroll_pos = 0;
             }
             _ => {

@@ -1400,6 +1400,7 @@ dependencies = [
  "ropey",
  "serde_json",
  "sha2",
+ "uuid",
 ]
 
 [[package]]
