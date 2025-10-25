@@ -172,17 +172,16 @@ impl App {
                 }
 
                 match general_purpose::STANDARD.decode(self.buffer.trim()) {
-                    Ok(decoded_bytes) => {
-                        match String::from_utf8(decoded_bytes) {
-                            Ok(decoded_string) => {
-                                self.buffer = decoded_string;
-                                self.scroll_pos = 0;
-                            }
-                            Err(_) => {
-                                self.error_message = Some("Error: Decoded data is not valid UTF-8".to_string());
-                            }
+                    Ok(decoded_bytes) => match String::from_utf8(decoded_bytes) {
+                        Ok(decoded_string) => {
+                            self.buffer = decoded_string;
+                            self.scroll_pos = 0;
                         }
-                    }
+                        Err(_) => {
+                            self.error_message =
+                                Some("Error: Decoded data is not valid UTF-8".to_string());
+                        }
+                    },
                     Err(_) => {
                         self.error_message = Some("Error: Invalid base64 input".to_string());
                     }
@@ -213,8 +212,7 @@ impl Widget for &App {
         let title = Line::from(" POMP ".bold());
         let container = Block::bordered()
             .title(title.centered())
-            .border_set(border::THICK)
-            .border_type(BorderType::Rounded);
+            .border_set(border::EMPTY);
         let inner_area = container.inner(area);
         container.render(area, buf);
 
