@@ -11,6 +11,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Paragraph, Widget},
 };
 use ropey::Rope;
+use serde_json::Value;
 use std::io::Result;
 
 pub struct App {
@@ -49,7 +50,7 @@ impl App {
     }
 
     fn get_available_commands() -> Vec<&'static str> {
-        vec!["/base64-decode", "/base64-encode", "/copy"]
+        vec!["/base64-decode", "/base64-encode", "/copy", "/json-format"]
     }
 
     fn get_filtered_commands(&self) -> Vec<&'static str> {
@@ -187,7 +188,13 @@ impl App {
                 }
             }
             KeyCode::Esc => {
-                self.exit = true;
+                // Close autocomplete popup if open, otherwise exit
+                let filtered = self.get_filtered_commands();
+                if !filtered.is_empty() || self.autocomplete_index.is_some() {
+                    self.autocomplete_index = None;
+                    self.input = Rope::new();
+                    self.cursor_pos = 0;
+                }
             }
             _ => {}
         }
@@ -257,6 +264,27 @@ impl App {
                     }
                     Err(_) => {
                         self.error_message = Some("Error: Failed to copy to clipboard".to_string());
+                    }
+                }
+            }
+            "/json-format" => {
+                if self.buffer.is_empty() {
+                    self.error_message = Some("Error: Buffer is empty".to_string());
+                    return;
+                }
+
+                match serde_json::from_str::<Value>(&self.buffer) {
+                    Ok(json_value) => match serde_json::to_string_pretty(&json_value) {
+                        Ok(formatted) => {
+                            self.buffer = formatted;
+                            self.scroll_pos = 0;
+                        }
+                        Err(_) => {
+                            self.error_message = Some("Error: Failed to format JSON".to_string());
+                        }
+                    },
+                    Err(e) => {
+                        self.error_message = Some(format!("Error: Invalid JSON - {}", e));
                     }
                 }
             }
