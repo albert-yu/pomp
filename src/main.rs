@@ -1,5 +1,5 @@
 use arboard::Clipboard;
-use base64::{Engine as _, engine::general_purpose};
+use base64::{engine::general_purpose, Engine as _};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
 use ratatui::{
@@ -13,6 +13,7 @@ use ratatui::{
 };
 use ropey::Rope;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::io::Result;
 
 pub struct App {
@@ -123,6 +124,7 @@ impl App {
             "/css-minify",
             "/json-format",
             "/json-minify",
+            "/sha-256",
         ]
     }
 
@@ -498,6 +500,18 @@ impl App {
                         self.error_message = Some(format!("Error: Invalid CSS - {}", e));
                     }
                 }
+            }
+            "/sha-256" => {
+                if self.buffer.is_empty() {
+                    self.error_message = Some("Error: Buffer is empty".to_string());
+                    return;
+                }
+
+                let mut hasher = Sha256::new();
+                hasher.update(self.buffer.as_bytes());
+                let result = hasher.finalize();
+                self.buffer = format!("{:x}", result);
+                self.scroll_pos = 0;
             }
             _ => {
                 self.error_message = Some(format!("Error: Unknown command '{}'", command));
