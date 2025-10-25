@@ -1,7 +1,8 @@
+mod cmds;
+
 use arboard::Clipboard;
-use base64::{Engine as _, engine::general_purpose};
+use cmds::{base64_decode, base64_encode, css_format, css_minify, json_format, json_minify};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
-use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Layout},
@@ -12,7 +13,6 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Widget},
 };
 use ropey::Rope;
-use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::io::Result;
 use uuid::Uuid;
@@ -418,20 +418,12 @@ impl App {
                     return;
                 }
 
-                match general_purpose::STANDARD.decode(self.buffer.trim()) {
-                    Ok(decoded_bytes) => match String::from_utf8(decoded_bytes) {
-                        Ok(decoded_string) => {
-                            self.buffer = decoded_string;
-                            self.scroll_pos = 0;
-                        }
-                        Err(_) => {
-                            self.error_message =
-                                Some("Error: Decoded data is not valid UTF-8".to_string());
-                        }
-                    },
-                    Err(_) => {
-                        self.error_message = Some("Error: Invalid base64 input".to_string());
+                match base64_decode(self.buffer.trim()) {
+                    Ok(decoded_string) => {
+                        self.buffer = decoded_string;
+                        self.scroll_pos = 0;
                     }
+                    Err(e) => self.error_message = Some(e.to_string()),
                 }
             }
             "/base64-encode" => {
@@ -440,7 +432,7 @@ impl App {
                     return;
                 }
 
-                let encoded = general_purpose::STANDARD.encode(self.buffer.as_bytes());
+                let encoded = base64_encode(self.buffer.as_str());
                 self.buffer = encoded;
                 self.scroll_pos = 0;
             }
@@ -465,18 +457,13 @@ impl App {
                     return;
                 }
 
-                match serde_json::from_str::<Value>(&self.buffer) {
-                    Ok(json_value) => match serde_json::to_string_pretty(&json_value) {
-                        Ok(formatted) => {
-                            self.buffer = formatted;
-                            self.scroll_pos = 0;
-                        }
-                        Err(_) => {
-                            self.error_message = Some("Error: Failed to format JSON".to_string());
-                        }
-                    },
+                match json_format(&self.buffer) {
+                    Ok(formatted) => {
+                        self.buffer = formatted;
+                        self.scroll_pos = 0;
+                    }
                     Err(e) => {
-                        self.error_message = Some(format!("Error: Invalid JSON - {}", e));
+                        self.error_message = Some(format!("Error: {}", e));
                     }
                 }
             }
@@ -486,18 +473,13 @@ impl App {
                     return;
                 }
 
-                match serde_json::from_str::<Value>(&self.buffer) {
-                    Ok(json_value) => match serde_json::to_string(&json_value) {
-                        Ok(minified) => {
-                            self.buffer = minified;
-                            self.scroll_pos = 0;
-                        }
-                        Err(_) => {
-                            self.error_message = Some("Error: Failed to minify JSON".to_string());
-                        }
-                    },
+                match json_minify(&self.buffer) {
+                    Ok(minified) => {
+                        self.buffer = minified;
+                        self.scroll_pos = 0;
+                    }
                     Err(e) => {
-                        self.error_message = Some(format!("Error: Invalid JSON - {}", e));
+                        self.error_message = Some(format!("Error: {}", e));
                     }
                 }
             }
@@ -507,26 +489,13 @@ impl App {
                     return;
                 }
 
-                let buffer_clone = self.buffer.clone();
-                match StyleSheet::parse(&buffer_clone, ParserOptions::default()) {
-                    Ok(stylesheet) => {
-                        let printer_options = PrinterOptions {
-                            minify: false,
-                            ..Default::default()
-                        };
-                        match stylesheet.to_css(printer_options) {
-                            Ok(result) => {
-                                self.buffer = result.code;
-                                self.scroll_pos = 0;
-                            }
-                            Err(_) => {
-                                self.error_message =
-                                    Some("Error: Failed to format CSS".to_string());
-                            }
-                        }
+                match css_format(&self.buffer) {
+                    Ok(formatted) => {
+                        self.buffer = formatted;
+                        self.scroll_pos = 0;
                     }
                     Err(e) => {
-                        self.error_message = Some(format!("Error: Invalid CSS - {}", e));
+                        self.error_message = Some(format!("Error: {}", e));
                     }
                 }
             }
@@ -536,31 +505,13 @@ impl App {
                     return;
                 }
 
-                let buffer_clone = self.buffer.clone();
-                match StyleSheet::parse(&buffer_clone, ParserOptions::default()) {
-                    Ok(mut stylesheet) => {
-                        if let Err(e) = stylesheet.minify(MinifyOptions::default()) {
-                            self.error_message =
-                                Some(format!("Error: Failed to minify CSS - {}", e));
-                            return;
-                        }
-                        let printer_options = PrinterOptions {
-                            minify: true,
-                            ..Default::default()
-                        };
-                        match stylesheet.to_css(printer_options) {
-                            Ok(result) => {
-                                self.buffer = result.code;
-                                self.scroll_pos = 0;
-                            }
-                            Err(_) => {
-                                self.error_message =
-                                    Some("Error: Failed to minify CSS".to_string());
-                            }
-                        }
+                match css_minify(&self.buffer) {
+                    Ok(minified) => {
+                        self.buffer = minified;
+                        self.scroll_pos = 0;
                     }
                     Err(e) => {
-                        self.error_message = Some(format!("Error: Invalid CSS - {}", e));
+                        self.error_message = Some(format!("Error: {}", e));
                     }
                 }
             }
