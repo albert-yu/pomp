@@ -1,5 +1,8 @@
+mod cmds;
+
 use arboard::Clipboard;
 use base64::{Engine as _, engine::general_purpose};
+use cmds::base64_decode;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
 use ratatui::{
@@ -418,20 +421,12 @@ impl App {
                     return;
                 }
 
-                match general_purpose::STANDARD.decode(self.buffer.trim()) {
-                    Ok(decoded_bytes) => match String::from_utf8(decoded_bytes) {
-                        Ok(decoded_string) => {
-                            self.buffer = decoded_string;
-                            self.scroll_pos = 0;
-                        }
-                        Err(_) => {
-                            self.error_message =
-                                Some("Error: Decoded data is not valid UTF-8".to_string());
-                        }
-                    },
-                    Err(_) => {
-                        self.error_message = Some("Error: Invalid base64 input".to_string());
+                match base64_decode(self.buffer.trim()) {
+                    Ok(decoded_string) => {
+                        self.buffer = decoded_string;
+                        self.scroll_pos = 0;
                     }
+                    Err(e) => self.error_message = Some(e.to_string()),
                 }
             }
             "/base64-encode" => {
