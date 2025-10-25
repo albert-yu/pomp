@@ -568,27 +568,42 @@ impl Widget for &App {
             all_lines[start_line..end_line].to_vec()
         };
 
-        let input_display = visible_lines.join("\n");
-
         // Build text with cursor, adjusting for scrolled lines
         let (cursor_line, cursor_col) = self.get_cursor_line_col();
+
+        // Add proper prefixes to each line (> for first line, spaces for continuation lines)
+        let formatted_lines: Vec<String> = visible_lines.iter().enumerate().map(|(i, line)| {
+            if i == 0 {
+                format!("> {}", line)
+            } else {
+                format!("  {}", line)
+            }
+        }).collect();
+
+        let formatted_display = formatted_lines.join("\n");
+
         let text_with_cursor = if cursor_line >= start_line && cursor_line < end_line {
             // Cursor is in visible area
             let line_offset = cursor_line - start_line;
             let mut char_pos = 0;
+
+            // Account for line prefixes and content
             for i in 0..line_offset {
                 if i < visible_lines.len() {
-                    char_pos += visible_lines[i].chars().count() + 1; // +1 for newline
+                    char_pos += 2; // "> " or "  " prefix
+                    char_pos += visible_lines[i].chars().count();
+                    char_pos += 1; // newline
                 }
             }
+            char_pos += 2; // Current line prefix
             char_pos += cursor_col;
 
-            let before: String = input_display.chars().take(char_pos).collect();
-            let after: String = input_display.chars().skip(char_pos + 1).collect();
-            format!("> {}█{}", before, after)
+            let before: String = formatted_display.chars().take(char_pos).collect();
+            let after: String = formatted_display.chars().skip(char_pos + 1).collect();
+            format!("{}█{}", before, after)
         } else {
             // Cursor not in visible area (shouldn't happen with proper scrolling)
-            format!("> {}█", input_display)
+            format!("{}█", formatted_display)
         };
 
         Paragraph::new(text_with_cursor)
