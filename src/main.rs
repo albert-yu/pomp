@@ -3,12 +3,12 @@ use base64::{Engine as _, engine::general_purpose};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{
     DefaultTerminal, Frame,
-    layout::{Constraint, Layout, Alignment},
+    layout::{Constraint, Layout},
     prelude::Rect,
-    style::{Stylize, Style, Color},
+    style::{Color, Style, Stylize},
     symbols::border,
     text::Line,
-    widgets::{Block, Borders, Paragraph, Widget, List, ListItem},
+    widgets::{Block, Borders, List, ListItem, Paragraph, Widget},
 };
 use ropey::Rope;
 use std::io::Result;
@@ -354,9 +354,11 @@ impl Widget for &App {
                 .collect();
 
             let list = List::new(items)
-                .block(Block::bordered()
-                    .title("Commands")
-                    .border_set(border::PLAIN))
+                .block(
+                    Block::bordered()
+                        .title("Commands")
+                        .border_set(border::PLAIN),
+                )
                 .style(Style::default().bg(Color::Black));
 
             list.render(popup_area, buf);
