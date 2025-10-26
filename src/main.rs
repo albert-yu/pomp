@@ -430,7 +430,7 @@ impl App {
         match command.trim() {
             "/base64-decode" => {
                 if self.buffer.is_empty() {
-                    self.error_message = Some("Error: Buffer is empty".to_string());
+                    self.error_message = Some(empty_buffer_msg());
                     return;
                 }
 
@@ -444,7 +444,7 @@ impl App {
             }
             "/base64-encode" => {
                 if self.buffer.is_empty() {
-                    self.error_message = Some("Error: Buffer is empty".to_string());
+                    self.error_message = Some(empty_buffer_msg());
                     return;
                 }
 
@@ -454,7 +454,7 @@ impl App {
             }
             "/copy" => {
                 if self.buffer.is_empty() {
-                    self.error_message = Some("Error: Buffer is empty".to_string());
+                    self.error_message = Some(empty_buffer_msg());
                     return;
                 }
 
@@ -469,7 +469,7 @@ impl App {
             }
             "/json-format" => {
                 if self.buffer.is_empty() {
-                    self.error_message = Some("Error: Buffer is empty".to_string());
+                    self.error_message = Some(empty_buffer_msg());
                     return;
                 }
 
@@ -485,7 +485,7 @@ impl App {
             }
             "/json-minify" => {
                 if self.buffer.is_empty() {
-                    self.error_message = Some("Error: Buffer is empty".to_string());
+                    self.error_message = Some(empty_buffer_msg());
                     return;
                 }
 
@@ -501,7 +501,7 @@ impl App {
             }
             "/css-format" => {
                 if self.buffer.is_empty() {
-                    self.error_message = Some("Error: Buffer is empty".to_string());
+                    self.error_message = Some(empty_buffer_msg());
                     return;
                 }
 
@@ -517,7 +517,7 @@ impl App {
             }
             "/css-minify" => {
                 if self.buffer.is_empty() {
-                    self.error_message = Some("Error: Buffer is empty".to_string());
+                    self.error_message = Some(empty_buffer_msg());
                     return;
                 }
 
@@ -541,7 +541,7 @@ impl App {
             }
             "/sha-256" => {
                 if self.buffer.is_empty() {
-                    self.error_message = Some("Error: Buffer is empty".to_string());
+                    self.error_message = Some(empty_buffer_msg());
                     return;
                 }
 
@@ -561,6 +561,10 @@ impl App {
             }
         }
     }
+}
+
+fn empty_buffer_msg() -> String {
+    "Error: Buffer is empty".to_string()
 }
 
 impl Widget for &App {
