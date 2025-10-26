@@ -213,6 +213,20 @@ impl App {
                     }
                 }
             }
+            KeyCode::BackTab => {
+                let filtered = self.get_filtered_commands();
+                if !filtered.is_empty() {
+                    if let Some(index) = self.autocomplete_index {
+                        self.autocomplete_index = if index == 0 {
+                            Some(filtered.len() - 1)
+                        } else {
+                            Some(index - 1)
+                        };
+                    } else {
+                        self.autocomplete_index = Some(filtered.len() - 1);
+                    }
+                }
+            }
             KeyCode::Char(c) => {
                 self.input.insert_char(self.cursor_pos, c);
                 self.cursor_pos += 1;
