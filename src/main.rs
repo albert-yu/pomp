@@ -131,7 +131,9 @@ impl App {
             "/exit",
             "/json-format",
             "/json-minify",
+            "/redo",
             "/sha-256",
+            "/undo",
             "/uuid",
         ]
     }
@@ -170,18 +172,6 @@ impl App {
 
     fn handle_key_event(&mut self, key: KeyEvent) {
         match key.code {
-            KeyCode::Char('z')
-                if key.modifiers.contains(KeyModifiers::CONTROL)
-                    || key.modifiers.contains(KeyModifiers::SUPER) =>
-            {
-                if key.modifiers.contains(KeyModifiers::SHIFT) {
-                    // Redo
-                    self.redo();
-                } else {
-                    // Undo
-                    self.undo();
-                }
-            }
             KeyCode::Char('c') | KeyCode::Char('d')
                 if key.modifiers.contains(KeyModifiers::CONTROL) =>
             {
@@ -418,12 +408,24 @@ impl App {
     }
 
     fn handle_command(&mut self, command: &str) {
-        // Save current buffer state before command execution
-        self.push_undo();
-
         // Clear any previous error and info message
         self.error_message = None;
         self.info_message = None;
+
+        match command.trim() {
+            "/undo" => {
+                self.undo();
+                return;
+            }
+            "/redo" => {
+                self.redo();
+                return;
+            }
+            _ => {}
+        }
+
+        // Save current buffer state before command execution
+        self.push_undo();
 
         match command.trim() {
             "/base64-decode" => {
