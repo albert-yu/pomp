@@ -27,6 +27,7 @@ pub struct App {
     error_message: Option<String>,
     info_message: Option<String>,
     autocomplete_index: Option<usize>,
+    autocomplete_scroll: usize,
     input_scroll_line: usize,
     undo_stack: Vec<String>,
     redo_stack: Vec<String>,
@@ -44,6 +45,7 @@ impl Default for App {
             error_message: None,
             info_message: Some("Press / to show available commands".to_string()),
             autocomplete_index: None,
+            autocomplete_scroll: 0,
             input_scroll_line: 0,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
@@ -120,6 +122,31 @@ impl App {
         }
     }
 
+    fn adjust_autocomplete_scroll(&mut self, filtered_count: usize) {
+        if let Some(index) = self.autocomplete_index {
+            let max_visible_items = 8; // popup_height - 2 for borders
+
+            // Scroll down if selected item is below visible area
+            if index >= self.autocomplete_scroll + max_visible_items {
+                self.autocomplete_scroll = index - max_visible_items + 1;
+            }
+
+            // Scroll up if selected item is above visible area
+            if index < self.autocomplete_scroll {
+                self.autocomplete_scroll = index;
+            }
+
+            // Ensure scroll doesn't exceed bounds
+            if filtered_count > max_visible_items {
+                self.autocomplete_scroll = self
+                    .autocomplete_scroll
+                    .min(filtered_count - max_visible_items);
+            } else {
+                self.autocomplete_scroll = 0;
+            }
+        }
+    }
+
     fn get_available_commands() -> Vec<&'static str> {
         vec![
             "/base64-decode",
@@ -163,6 +190,7 @@ impl App {
                 self.input.insert(self.cursor_pos, &text);
                 self.cursor_pos += text_len;
                 self.autocomplete_index = None;
+                self.autocomplete_scroll = 0;
                 self.adjust_input_scroll();
             }
             _ => {}
@@ -201,6 +229,7 @@ impl App {
                     } else {
                         self.autocomplete_index = Some(0);
                     }
+                    self.adjust_autocomplete_scroll(filtered.len());
                 }
             }
             KeyCode::BackTab => {
@@ -215,12 +244,14 @@ impl App {
                     } else {
                         self.autocomplete_index = Some(filtered.len() - 1);
                     }
+                    self.adjust_autocomplete_scroll(filtered.len());
                 }
             }
             KeyCode::Char(c) => {
                 self.input.insert_char(self.cursor_pos, c);
                 self.cursor_pos += 1;
                 self.autocomplete_index = None;
+                self.autocomplete_scroll = 0;
                 self.adjust_input_scroll();
             }
             KeyCode::Backspace => {
@@ -228,6 +259,7 @@ impl App {
                     self.cursor_pos -= 1;
                     self.input.remove(self.cursor_pos..self.cursor_pos + 1);
                     self.autocomplete_index = None;
+                    self.autocomplete_scroll = 0;
                     self.adjust_input_scroll();
                 }
             }
@@ -235,6 +267,7 @@ impl App {
                 if self.cursor_pos < self.input.len_chars() {
                     self.input.remove(self.cursor_pos..self.cursor_pos + 1);
                     self.autocomplete_index = None;
+                    self.autocomplete_scroll = 0;
                     self.adjust_input_scroll();
                 }
             }
@@ -303,6 +336,7 @@ impl App {
                         self.input = Rope::from(*command);
                         self.cursor_pos = self.input.len_chars();
                         self.autocomplete_index = None;
+                        self.autocomplete_scroll = 0;
                         self.input_scroll_line = 0;
                         return;
                     }
@@ -328,6 +362,7 @@ impl App {
                     self.input = Rope::new();
                     self.cursor_pos = 0;
                     self.autocomplete_index = None;
+                    self.autocomplete_scroll = 0;
                     self.input_scroll_line = 0;
                 }
             }
@@ -345,6 +380,7 @@ impl App {
                 let filtered = self.get_filtered_commands();
                 if !filtered.is_empty() || self.autocomplete_index.is_some() {
                     self.autocomplete_index = None;
+                    self.autocomplete_scroll = 0;
                     self.input = Rope::new();
                     self.cursor_pos = 0;
                     self.input_scroll_line = 0;
@@ -697,7 +733,9 @@ impl Widget for &App {
         // Render autocomplete popup if input starts with '/'
         let filtered_commands = self.get_filtered_commands();
         if !filtered_commands.is_empty() {
-            let popup_height = (filtered_commands.len() as u16 + 2).min(10);
+            let max_visible_items = 8;
+            let visible_item_count = filtered_commands.len().min(max_visible_items);
+            let popup_height = visible_item_count as u16 + 2; // +2 for borders
             let popup_width = 30;
 
             // Position popup above the input box
@@ -711,12 +749,18 @@ impl Widget for &App {
                 height: popup_height,
             };
 
-            let items: Vec<ListItem> = filtered_commands
+            // Calculate visible slice based on scroll position
+            let scroll_start = self.autocomplete_scroll;
+            let scroll_end = (scroll_start + max_visible_items).min(filtered_commands.len());
+            let visible_commands = &filtered_commands[scroll_start..scroll_end];
+
+            let items: Vec<ListItem> = visible_commands
                 .iter()
                 .enumerate()
-                .map(|(i, cmd)| {
+                .map(|(visible_i, cmd)| {
+                    let actual_i = scroll_start + visible_i;
                     let item = ListItem::new(*cmd);
-                    if Some(i) == self.autocomplete_index {
+                    if Some(actual_i) == self.autocomplete_index {
                         item.style(Style::default().bg(Color::White).fg(Color::Black))
                     } else {
                         item
