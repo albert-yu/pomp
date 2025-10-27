@@ -3,6 +3,7 @@ name = "pomp"
 version = "0.1.0"
 edition = "2024"
 description = "Data CLI tool inspired by Boop"
+homepage = "https://github.com/albert-yu/pomp"
 repository = "https://github.com/albert-yu/pomp"
 
 
