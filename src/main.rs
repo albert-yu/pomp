@@ -574,11 +574,7 @@ impl Widget for &App {
     {
         // Calculate input lines and height
         let input_text = self.input.to_string();
-        let input_line_count = if input_text.is_empty() {
-            1
-        } else {
-            input_text.lines().count().max(1)
-        };
+        let input_line_count = input_text.lines().count().max(1);
         let max_visible_lines = 5;
         let visible_input_lines = input_line_count.min(max_visible_lines);
         let input_height = visible_input_lines as u16 + 2; // +2 for borders
