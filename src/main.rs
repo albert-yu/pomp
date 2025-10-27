@@ -727,13 +727,11 @@ impl Widget for &App {
             // Clear the popup area to ensure opaque background
             Clear.render(popup_area, buf);
 
-            let list = List::new(items)
-                .block(
-                    Block::bordered()
-                        .title("Commands")
-                        .border_set(border::PLAIN),
-                )
-                .style(Style::default().bg(Color::Black));
+            let list = List::new(items).block(
+                Block::bordered()
+                    .title("Commands")
+                    .border_set(border::PLAIN),
+            );
 
             list.render(popup_area, buf);
         }
