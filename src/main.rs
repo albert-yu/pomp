@@ -288,7 +288,7 @@ impl App {
                 self.adjust_input_scroll();
             }
             KeyCode::Enter => {
-                // Check for Shift+Enter to insert newline
+                // TODO: this SHIFT doesn't actually get set
                 if key.modifiers.contains(KeyModifiers::SHIFT) {
                     self.input.insert_char(self.cursor_pos, '\n');
                     self.cursor_pos += 1;
