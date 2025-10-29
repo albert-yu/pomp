@@ -1,7 +1,10 @@
 mod cmds;
 
 use arboard::Clipboard;
-use cmds::{base64_decode, base64_encode, css_format, css_minify, json_format, json_minify};
+use cmds::{
+    base64_decode, base64_encode, css_format, css_minify, json_format, json_minify, unicode_escape,
+    unicode_unescape,
+};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{
     DefaultTerminal, Frame,
@@ -161,6 +164,8 @@ impl App {
             "/redo",
             "/sha-256",
             "/undo",
+            "/unicode-unescape",
+            "/unicode-escape",
             "/uuid",
         ]
     }
@@ -585,6 +590,32 @@ impl App {
                 hasher.update(self.buffer.as_bytes());
                 let result = hasher.finalize();
                 self.buffer = format!("{:x}", result);
+                self.scroll_pos = 0;
+            }
+            "/unicode-unescape" => {
+                if self.buffer.is_empty() {
+                    self.error_message = Some(empty_buffer_msg());
+                    return;
+                }
+
+                match unicode_unescape(&self.buffer) {
+                    Ok(decoded) => {
+                        self.buffer = decoded;
+                        self.scroll_pos = 0;
+                    }
+                    Err(e) => {
+                        self.error_message = Some(format!("Error: {}", e));
+                    }
+                }
+            }
+            "/unicode-escape" => {
+                if self.buffer.is_empty() {
+                    self.error_message = Some(empty_buffer_msg());
+                    return;
+                }
+
+                let encoded = unicode_escape(&self.buffer);
+                self.buffer = encoded;
                 self.scroll_pos = 0;
             }
             "/uuid" => {
