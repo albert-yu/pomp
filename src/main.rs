@@ -3,7 +3,7 @@ mod cmds;
 use arboard::Clipboard;
 use cmds::{
     base64_decode, base64_encode, css_format, css_minify, json_format, json_minify, unicode_escape,
-    unicode_unescape,
+    unicode_unescape, url_decode, url_encode,
 };
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{
@@ -166,6 +166,8 @@ impl App {
             "/undo",
             "/unicode-unescape",
             "/unicode-escape",
+            "/url-decode",
+            "/url-encode",
             "/uuid",
         ]
     }
@@ -615,6 +617,32 @@ impl App {
                 }
 
                 let encoded = unicode_escape(&self.buffer);
+                self.buffer = encoded;
+                self.scroll_pos = 0;
+            }
+            "/url-decode" => {
+                if self.buffer.is_empty() {
+                    self.error_message = Some(empty_buffer_msg());
+                    return;
+                }
+
+                match url_decode(&self.buffer) {
+                    Ok(decoded) => {
+                        self.buffer = decoded;
+                        self.scroll_pos = 0;
+                    }
+                    Err(e) => {
+                        self.error_message = Some(format!("Error: {}", e));
+                    }
+                }
+            }
+            "/url-encode" => {
+                if self.buffer.is_empty() {
+                    self.error_message = Some(empty_buffer_msg());
+                    return;
+                }
+
+                let encoded = url_encode(&self.buffer);
                 self.buffer = encoded;
                 self.scroll_pos = 0;
             }
