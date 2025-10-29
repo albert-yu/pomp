@@ -5,7 +5,6 @@ use cmds::{
     base64_decode, base64_encode, css_format, css_minify, json_format, json_minify, unicode_escape,
     unicode_unescape, url_decode, url_encode,
 };
-use color_eyre::owo_colors::OwoColorize;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{
     DefaultTerminal, Frame,
