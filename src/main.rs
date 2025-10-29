@@ -179,6 +179,15 @@ impl App {
             return vec![];
         }
 
+        // Special case: if input starts with "/help ", show autocomplete for the second argument
+        if input_text.starts_with("/help ") {
+            let after_help = &input_text[6..]; // Skip "/help "
+            return Self::get_available_commands()
+                .into_iter()
+                .filter(|cmd| cmd.starts_with(after_help))
+                .collect();
+        }
+
         Self::get_available_commands()
             .into_iter()
             .filter(|cmd| cmd.starts_with(&input_text))
@@ -365,7 +374,16 @@ impl App {
                 let filtered = self.get_filtered_commands();
                 if let Some(index) = self.autocomplete_index {
                     if let Some(command) = filtered.get(index) {
-                        self.input = Rope::from(*command);
+                        let input_text = self.input.to_string();
+
+                        // Special case: if completing for /help, preserve the /help prefix
+                        let new_text = if input_text.starts_with("/help ") {
+                            format!("/help {}", command)
+                        } else {
+                            command.to_string()
+                        };
+
+                        self.input = Rope::from(new_text.as_str());
                         self.cursor_pos = self.input.len_chars();
                         self.autocomplete_index = None;
                         self.autocomplete_scroll = 0;
