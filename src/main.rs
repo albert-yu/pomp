@@ -12,7 +12,7 @@ use ratatui::{
     prelude::Rect,
     style::{Color, Style, Stylize},
     symbols::border,
-    text::Line,
+    text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Widget},
 };
 use ropey::Rope;
@@ -821,10 +821,33 @@ impl Widget for &App {
             .iter()
             .any(|cmd| *cmd == first_word);
 
-        let input_paragraph = if is_valid_command {
-            Paragraph::new(text_with_cursor)
-                .block(input_block)
-                .style(Style::default().bold())
+        let input_paragraph = if is_valid_command && !first_word.is_empty() {
+            // Find where the first word ends in the formatted text
+            // The first line starts with "> "
+            let prefix = "> ";
+            let first_word_end = prefix.len() + first_word.len();
+
+            // Split text into lines
+            let lines: Vec<&str> = text_with_cursor.lines().collect();
+            let mut styled_lines = Vec::new();
+
+            for (i, line) in lines.iter().enumerate() {
+                if i == 0 && line.len() >= first_word_end {
+                    // First line - split at command boundary
+                    let before_and_command: String = line.chars().take(first_word_end).collect();
+                    let after_command: String = line.chars().skip(first_word_end).collect();
+
+                    styled_lines.push(Line::from(vec![
+                        Span::styled(before_and_command, Style::default().bold()),
+                        Span::raw(after_command),
+                    ]));
+                } else {
+                    // Other lines - no styling
+                    styled_lines.push(Line::from(line.to_string()));
+                }
+            }
+
+            Paragraph::new(Text::from(styled_lines)).block(input_block)
         } else {
             Paragraph::new(text_with_cursor).block(input_block)
         };
