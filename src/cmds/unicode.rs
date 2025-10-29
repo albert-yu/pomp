@@ -19,7 +19,7 @@ impl fmt::Display for UnicodeEscapeError {
     }
 }
 
-pub fn unicode_escape_decode(buffer: &str) -> Result<String, UnicodeEscapeError> {
+pub fn unicode_unescape(buffer: &str) -> Result<String, UnicodeEscapeError> {
     let mut result = String::new();
     let mut chars = buffer.chars().peekable();
 
@@ -31,20 +31,20 @@ pub fn unicode_escape_decode(buffer: &str) -> Result<String, UnicodeEscapeError>
                     let hex_digits: String = chars.by_ref().take(4).collect();
 
                     if hex_digits.len() != 4 {
-                        return Err(UnicodeEscapeError::InvalidEscapeSequence(
-                            format!("\\u{}", hex_digits)
-                        ));
+                        return Err(UnicodeEscapeError::InvalidEscapeSequence(format!(
+                            "\\u{}",
+                            hex_digits
+                        )));
                     }
 
                     // Parse the hex value
-                    let code_point = u32::from_str_radix(&hex_digits, 16)
-                        .map_err(|_| UnicodeEscapeError::InvalidEscapeSequence(
-                            format!("\\u{}", hex_digits)
-                        ))?;
+                    let code_point = u32::from_str_radix(&hex_digits, 16).map_err(|_| {
+                        UnicodeEscapeError::InvalidEscapeSequence(format!("\\u{}", hex_digits))
+                    })?;
 
                     // Convert to char
-                    let unicode_char = char::from_u32(code_point)
-                        .ok_or(UnicodeEscapeError::InvalidCodePoint)?;
+                    let unicode_char =
+                        char::from_u32(code_point).ok_or(UnicodeEscapeError::InvalidCodePoint)?;
 
                     result.push(unicode_char);
                 }
@@ -66,7 +66,7 @@ pub fn unicode_escape_decode(buffer: &str) -> Result<String, UnicodeEscapeError>
     Ok(result)
 }
 
-pub fn unicode_escape_encode(buffer: &str) -> String {
+pub fn unicode_escape(buffer: &str) -> String {
     let mut result = String::new();
 
     for ch in buffer.chars() {
