@@ -495,20 +495,6 @@ impl App {
         let mut split = input.split_whitespace();
         let cmd = split.next().unwrap_or("");
 
-        if cmd == "/help" {
-            let arg = split.next();
-            if let Some(target_command) = arg {
-                if let Some(help_text) = Self::get_command_help(target_command) {
-                    self.info_message = Some(format!("{}: {}", target_command, help_text));
-                } else {
-                    self.error_message = Some(format!("Unknown command: {}", target_command));
-                }
-            } else {
-                self.info_message = Some("Usage: /help /command (e.g., /help /uuid)".to_string());
-            }
-            return;
-        }
-
         // Save current buffer state before command execution
         self.push_undo();
 
@@ -623,6 +609,20 @@ impl App {
             }
             "/exit" => {
                 self.exit = true;
+            }
+            "/help" => {
+                let arg = split.next();
+                if let Some(target_command) = arg {
+                    if let Some(help_text) = Self::get_command_help(target_command) {
+                        self.info_message = Some(format!("{}: {}", target_command, help_text));
+                    } else {
+                        self.error_message = Some(format!("Unknown command: {}", target_command));
+                    }
+                } else {
+                    self.info_message =
+                        Some("Usage: /help /command (e.g., /help /uuid)".to_string());
+                }
+                return;
             }
             "/sha-256" => {
                 if self.buffer.is_empty() {
