@@ -291,16 +291,10 @@ impl App {
                 }
             }
             KeyCode::Char('j') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                // Ctrl+J for newline (universal line feed character)
-                self.input.insert_char(self.cursor_pos, '\n');
-                self.cursor_pos += 1;
-                self.adjust_input_scroll();
+                self.insert_newline();
             }
             KeyCode::Enter if key.modifiers.contains(KeyModifiers::ALT) => {
-                // Alt/Option+Enter for newline (macOS default in many terminals)
-                self.input.insert_char(self.cursor_pos, '\n');
-                self.cursor_pos += 1;
-                self.adjust_input_scroll();
+                self.insert_newline();
             }
             KeyCode::Char(c) => {
                 self.input.insert_char(self.cursor_pos, c);
@@ -377,9 +371,7 @@ impl App {
             }
             KeyCode::Enter => {
                 if key.modifiers.contains(KeyModifiers::SHIFT) {
-                    self.input.insert_char(self.cursor_pos, '\n');
-                    self.cursor_pos += 1;
-                    self.adjust_input_scroll();
+                    self.insert_newline();
                     return;
                 }
                 // Check if autocomplete is active
@@ -466,6 +458,12 @@ impl App {
             }
             _ => {}
         }
+    }
+
+    fn insert_newline(&mut self) {
+        self.input.insert_char(self.cursor_pos, '\n');
+        self.cursor_pos += 1;
+        self.adjust_input_scroll();
     }
 
     fn push_undo(&mut self) {
