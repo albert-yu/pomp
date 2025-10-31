@@ -46,7 +46,9 @@ impl Default for App {
             scroll_pos: 0,
             clipboard: Clipboard::new().unwrap(),
             error_message: None,
-            info_message: Some("Press / to show available commands".to_string()),
+            info_message: Some(
+                "Press / for commands • Ctrl+J or Alt+Enter for newline".to_string(),
+            ),
             autocomplete_index: None,
             autocomplete_scroll: 0,
             input_scroll_line: 0,
@@ -288,6 +290,18 @@ impl App {
                     self.adjust_autocomplete_scroll(filtered.len());
                 }
             }
+            KeyCode::Char('j') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                // Ctrl+J for newline (universal line feed character)
+                self.input.insert_char(self.cursor_pos, '\n');
+                self.cursor_pos += 1;
+                self.adjust_input_scroll();
+            }
+            KeyCode::Enter if key.modifiers.contains(KeyModifiers::ALT) => {
+                // Alt/Option+Enter for newline (macOS default in many terminals)
+                self.input.insert_char(self.cursor_pos, '\n');
+                self.cursor_pos += 1;
+                self.adjust_input_scroll();
+            }
             KeyCode::Char(c) => {
                 self.input.insert_char(self.cursor_pos, c);
                 self.cursor_pos += 1;
@@ -362,14 +376,12 @@ impl App {
                 self.adjust_input_scroll();
             }
             KeyCode::Enter => {
-                // TODO: this SHIFT doesn't actually get set
                 if key.modifiers.contains(KeyModifiers::SHIFT) {
                     self.input.insert_char(self.cursor_pos, '\n');
                     self.cursor_pos += 1;
                     self.adjust_input_scroll();
                     return;
                 }
-
                 // Check if autocomplete is active
                 let filtered = self.get_filtered_commands();
                 if let Some(index) = self.autocomplete_index {
@@ -728,7 +740,11 @@ impl Widget for &App {
     {
         // Calculate input lines and height
         let input_text = self.input.to_string();
-        let input_line_count = input_text.lines().count().max(1);
+        let mut input_line_count = input_text.lines().count().max(1);
+        // Account for trailing newline (lines() doesn't count the empty line after a trailing \n)
+        if input_text.ends_with('\n') {
+            input_line_count += 1;
+        }
         let max_visible_lines = 5;
         let visible_input_lines = input_line_count.min(max_visible_lines);
         let input_height = visible_input_lines as u16 + 2; // +2 for borders
@@ -771,7 +787,11 @@ impl Widget for &App {
             .border_set(border::PLAIN);
 
         // Build input text with cursor and handle multiple lines
-        let all_lines: Vec<&str> = input_text.lines().collect();
+        let mut all_lines: Vec<&str> = input_text.lines().collect();
+        // Account for trailing newline by adding an empty line
+        if input_text.ends_with('\n') {
+            all_lines.push("");
+        }
         let start_line = self
             .input_scroll_line
             .min(input_line_count.saturating_sub(1));
@@ -975,7 +995,10 @@ fn main() -> Result<()> {
     crossterm::execute!(
         std::io::stdout(),
         crossterm::event::EnableMouseCapture,
-        crossterm::event::EnableBracketedPaste
+        crossterm::event::EnableBracketedPaste,
+        crossterm::event::PushKeyboardEnhancementFlags(
+            crossterm::event::KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES
+        )
     )?;
 
     let mut app = App::default();
@@ -983,6 +1006,7 @@ fn main() -> Result<()> {
 
     crossterm::execute!(
         std::io::stdout(),
+        crossterm::event::PopKeyboardEnhancementFlags,
         crossterm::event::DisableMouseCapture,
         crossterm::event::DisableBracketedPaste
     )?;
