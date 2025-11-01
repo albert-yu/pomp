@@ -161,7 +161,6 @@ impl App {
             "/css-minify",
             "/cuid",
             "/exit",
-            "/help",
             "/json-format",
             "/json-minify",
             "/redo",
@@ -181,15 +180,6 @@ impl App {
             return vec![];
         }
 
-        // Special case: if input starts with "/help ", show autocomplete for the second argument
-        if input_text.starts_with("/help ") {
-            let after_help = &input_text[6..]; // Skip "/help "
-            return Self::get_available_commands()
-                .into_iter()
-                .filter(|cmd| cmd.starts_with(after_help))
-                .collect();
-        }
-
         Self::get_available_commands()
             .into_iter()
             .filter(|cmd| cmd.starts_with(&input_text))
@@ -205,7 +195,6 @@ impl App {
             "/css-minify" => Some("Minify CSS code"),
             "/cuid" => Some("Generate a CUID (Collision-resistant Unique ID)"),
             "/exit" => Some("Exit the application"),
-            "/help" => Some("Display help for a command (usage: /help /command)"),
             "/json-format" => Some("Format JSON with indentation"),
             "/json-minify" => Some("Minify JSON by removing whitespace"),
             "/redo" => Some("Redo the last undone action"),
@@ -378,16 +367,7 @@ impl App {
                 let filtered = self.get_filtered_commands();
                 if let Some(index) = self.autocomplete_index {
                     if let Some(command) = filtered.get(index) {
-                        let input_text = self.input.to_string();
-
-                        // Special case: if completing for /help, preserve the /help prefix
-                        let new_text = if input_text.starts_with("/help ") {
-                            format!("/help {}", command)
-                        } else {
-                            command.to_string()
-                        };
-
-                        self.input = Rope::from(new_text.as_str());
+                        self.input = Rope::from(command.to_string().as_str());
                         self.cursor_pos = self.input.len_chars();
                         self.autocomplete_index = None;
                         self.autocomplete_scroll = 0;
@@ -636,20 +616,6 @@ impl App {
             }
             "/exit" => {
                 self.exit = true;
-            }
-            "/help" => {
-                let arg = split.next();
-                if let Some(target_command) = arg {
-                    if let Some(help_text) = Self::get_command_help(target_command) {
-                        self.info_message = Some(format!("{}: {}", target_command, help_text));
-                    } else {
-                        self.error_message = Some(format!("Unknown command: {}", target_command));
-                    }
-                } else {
-                    self.info_message =
-                        Some("Usage: /help /command (e.g., /help /uuid)".to_string());
-                }
-                return;
             }
             "/sha-256" => {
                 if self.buffer.is_empty() {
@@ -945,6 +911,16 @@ impl Widget for &App {
             Paragraph::new(error.as_str())
                 .style(Style::default().fg(Color::Red))
                 .render(chunks[2], buf);
+        } else if let Some(index) = self.autocomplete_index {
+            // Show help for the highlighted command
+            if let Some(command) = filtered_commands.get(index) {
+                if let Some(help_text) = App::get_command_help(command) {
+                    let message = format!("{}: {}", command, help_text);
+                    Paragraph::new(message)
+                        .style(Style::default().fg(Color::Gray))
+                        .render(chunks[2], buf);
+                }
+            }
         } else if input_line_count > max_visible_lines {
             // Show remaining line count if input has more than 5 lines and we're at the bottom
             let remaining_above = self.input_scroll_line;
