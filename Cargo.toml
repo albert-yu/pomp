@@ -1,6 +1,6 @@
 [package]
 name = "pomp"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
 description = "Data CLI tool inspired by Boop"
 homepage = "https://github.com/albert-yu/pomp"
