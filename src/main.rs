@@ -282,9 +282,6 @@ impl App {
             KeyCode::Char('j') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.insert_newline();
             }
-            KeyCode::Enter if key.modifiers.contains(KeyModifiers::ALT) => {
-                self.insert_newline();
-            }
             KeyCode::Char(c) => {
                 self.input.insert_char(self.cursor_pos, c);
                 self.cursor_pos += 1;
@@ -359,8 +356,10 @@ impl App {
                 self.adjust_input_scroll();
             }
             KeyCode::Enter => {
-                if key.modifiers.contains(KeyModifiers::SHIFT) {
-                    // This does not get picked up in most
+                if key.modifiers.contains(KeyModifiers::SHIFT)
+                    || key.modifiers.contains(KeyModifiers::ALT)
+                {
+                    // Shift+Enter does not get picked up in most
                     // macOS terminal emulators:
                     // https://github.com/crossterm-rs/crossterm/issues/685
                     self.insert_newline();
