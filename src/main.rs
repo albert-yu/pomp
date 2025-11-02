@@ -360,6 +360,9 @@ impl App {
             }
             KeyCode::Enter => {
                 if key.modifiers.contains(KeyModifiers::SHIFT) {
+                    // This does not get picked up in most
+                    // macOS terminal emulators:
+                    // https://github.com/crossterm-rs/crossterm/issues/685
                     self.insert_newline();
                     return;
                 }
