@@ -2,8 +2,8 @@ mod cmds;
 
 use arboard::Clipboard;
 use cmds::{
-    base64_decode, base64_encode, css_format, css_minify, json_format, json_minify, unicode_escape,
-    unicode_unescape, url_decode, url_encode,
+    base64_decode, base64_encode, css_format, css_minify, html_format, json_format, json_minify,
+    unicode_escape, unicode_unescape, url_decode, url_encode,
 };
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{
@@ -161,6 +161,7 @@ impl App {
             "/css-minify",
             "/cuid",
             "/exit",
+            "/html-format",
             "/json-format",
             "/json-minify",
             "/redo",
@@ -195,6 +196,7 @@ impl App {
             "/css-minify" => Some("Minify CSS code"),
             "/cuid" => Some("Generate a CUID (Collision-resistant Unique ID)"),
             "/exit" => Some("Exit the application"),
+            "/html-format" => Some("Format HTML code"),
             "/json-format" => Some("Format JSON with indentation"),
             "/json-minify" => Some("Minify JSON by removing whitespace"),
             "/redo" => Some("Redo the last undone action"),
@@ -544,6 +546,22 @@ impl App {
                     }
                     Err(_) => {
                         self.error_message = Some("Error: Failed to copy to clipboard".to_string());
+                    }
+                }
+            }
+            "/html-format" => {
+                if self.buffer.is_empty() {
+                    self.error_message = Some(empty_buffer_msg());
+                    return;
+                }
+
+                match html_format(&self.buffer) {
+                    Ok(formatted) => {
+                        self.buffer = formatted;
+                        self.scroll_pos = 0;
+                    }
+                    Err(e) => {
+                        self.error_message = Some(format!("Error: {}", e));
                     }
                 }
             }
@@ -988,4 +1006,35 @@ fn main() -> Result<()> {
     )?;
     ratatui::restore();
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_commands_list_includes_html_format() {
+        assert!(App::get_available_commands().contains(&"/html-format"));
+        assert_eq!(
+            App::get_command_help("/html-format"),
+            Some("Format HTML code")
+        );
+    }
+
+    #[test]
+    fn test_handle_command_html_format() {
+        let mut app = App::default();
+        app.buffer = "<div>\n<h1>Test</h1>\n</div>".to_string();
+        app.handle_command("/html-format");
+        assert_eq!(app.buffer, "<div>\n  <h1>Test</h1>\n</div>\n");
+        assert!(app.error_message.is_none());
+    }
+
+    #[test]
+    fn test_handle_command_html_format_empty() {
+        let mut app = App::default();
+        app.buffer = String::new();
+        app.handle_command("/html-format");
+        assert_eq!(app.error_message, Some(empty_buffer_msg()));
+    }
 }
